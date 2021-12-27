@@ -10,8 +10,10 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-            "args": ["-i", "C:/Users/lucas/AppData/Local/Packages/Microsoft.YourPhone_8wekyb3d8bbwe/LocalCache/Indexed/0857d319-bd80-495f-a54a-34c472f351aa/System/Database", "-o", "./out", "-c", "Marce"
-            ]    
+            //"args": ["-p", "mediaPhotosFolder"]
+            "args": ["-i", "C:/Users/lucas/AppData/Local/Packages/Microsoft.YourPhone_8wekyb3d8bbwe/LocalCache/Indexed/0857d319-bd80-495f-a54a-34c472f351aa/System/Database","-p", "mediaPhotosFolder"]
+            //"args": ["-i", "C:/Users/lucas/AppData/Local/Packages/Microsoft.YourPhone_8wekyb3d8bbwe/LocalCache/Indexed/0857d319-bd80-495f-a54a-34c472f351aa/System/Database", "-o", "./out", "-cn", "Marce", "-p" "."]
+            //"args": ["-h"]    
         }
     ]
 }

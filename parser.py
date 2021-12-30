@@ -29,6 +29,10 @@ class IOOperator:
     def log(message, logFile):
         logFile.write(message+'\n')
 
+    def printOut(message):
+        if(VERBOSE):
+            print(message)
+
 class DBOperator():
 
     def close_db_conn(db_conn):
@@ -94,40 +98,48 @@ class YourPhoneParser():
             contacts_info = DBOperator.execute_query(CONTACT_INFO_QUERY, contactDB_conn, self.contactDB, self.logFile)
 
             country_code_regex = re.compile(COUNTRY_CODE_REGEX)
-            i = 0
+            contactCount = 0
+            phoneCount = 0
+            callsCount = 0
+            conversationCount = 0
+            smsCount = 0
             for contact in contacts_info:
-                i = i+1
+                contactCount = contactCount+1
                 contact = list(contact)
                 contact[10] = self.ldap2datetime(contact[10]).isoformat(" ", "seconds")
-                print(contact[1:])
+                IOOperator.printOut(contact[1:])
                 phone_numbers = DBOperator.execute_query(CONTACT_PHONE_QUERY+' WHERE contact_id='+str(contact[0]), contactDB_conn, self.contactDB, self.logFile)
 
                 for phone in phone_numbers:
+                    phoneCount = phoneCount+1
                     raw_phone_number = country_code_regex.sub('', phone[1])
                     phone = list(phone)
                     phone[3] = PHONE_TYPE[phone[3]]
-                    print(phone[1:])
+                    IOOperator.printOut(phone[1:])
                     callingDB_conn = DBOperator.create_db_conn(self.callingDB)  # calling.db DATABASE
                     calls =  DBOperator.execute_query(CALLING_QUERY+' WHERE phone_number LIKE \'%'+str(raw_phone_number)+'%\'',callingDB_conn, self.callingDB, self.logFile)
 
                     for call in calls:
+                        callsCount = callsCount+1
                         call = list(call)
                         call[3] = CALL_TYPE[call[3]]
                         call[4] = IS_READ_TYPE[call[4]]
                         call[5] = self.ldap2datetime(call[5]).isoformat(" ", "seconds")
                         call[6] = self.ldap2datetime(call[6]).isoformat(" ", "seconds")
-                        print('Call ->\t'+str(call[2:]))
+                        IOOperator.printOut('Call ->\t'+str(call[2:]))
 
                     phoneDB_conn = DBOperator.create_db_conn(self.phoneDB)   # phone.db DATABASE
                     sms_mms_conversation = DBOperator.execute_query(CONVERSATION_SMS_MMS_QUERY +' WHERE recipient_list LIKE \'%'+str(raw_phone_number)+'%\'',phoneDB_conn, self.phoneDB, self.logFile)
 
                     for conversation in sms_mms_conversation:
+                        conversationCount = conversationCount+1
                         conversation = list(conversation)
                         conversation[6] = self.ldap2datetime(conversation[6]).isoformat(" ", "seconds")
-                        print('Conv ->'+str(conversation[1:]))
+                        IOOperator.printOut('Conv ->'+str(conversation[1:]))
                         sms_list = DBOperator.execute_query('SELECT '+SMS_QUERY+' FROM message WHERE thread_id=' +str(conversation[0])+' ORDER BY timestamp ASC',phoneDB_conn, self.phoneDB, self.logFile)
                         
                         for sms in sms_list:
+                            smsCount = smsCount+1
                             sms = list(sms)
                             sms[2] = SMS_TYPE[sms[2]]
                             sms[3] = self.ldap2datetime(sms[3]).isoformat(" ", "seconds")
@@ -135,21 +147,28 @@ class YourPhoneParser():
                             sms[5] = SMS_PC_STATUS[sms[5]]
                             
                             if(sms[2] == SMS_TYPE[1]):
-                                print(colored('+\t'+str(sms[3:]), 'green'))
+                                IOOperator.printOut(colored('+\t'+str(sms[3:]), 'green'))
                             elif(sms[2] == SMS_TYPE[2]):
-                                print(colored('-\t'+str(sms[3:]), 'blue'))
+                                IOOperator.printOut(colored('-\t'+str(sms[3:]), 'blue'))
                             else:
-                                print(colored('Unexpected TODO', 'red'))
-                print()
-            print('Total contacts:',i)    
+                                IOOperator.printOut(colored('Unexpected TODO', 'red'))
+                IOOperator.printOut('\n')
+
             DBOperator.close_db_conn(phoneDB_conn)
             DBOperator.close_db_conn(callingDB_conn)
             DBOperator.close_db_conn(contactDB_conn)
+            
+            print(colored('Ok','green'))
+            print('-> Total contacts:',contactCount)
+            print('-> Total phone:',phoneCount)
+            print('-> Total calls:',callsCount)
+            print('-> Total sms chats:',conversationCount)
+            print('-> Total sms exchanged:',smsCount)
+            print()        
         except Exception as e:
             print(colored('Failure','red'))
             print(colored('Contact/call/sms/mms parser failed: '+str(e), 'red'))
-        print(colored('Ok\n','green'))
-    
+        
     def process_images(self):
         print(colored('Extracting images:','cyan'))
         try:
@@ -160,53 +179,12 @@ class YourPhoneParser():
                 IOOperator.createFolder(thumbFolder)
                 IOOperator.createFolder(mediaFolder)
                 IOOperator.createFolder(wallpaperFolder)
+
             images_conn = DBOperator.create_db_conn(self.photosDB)  # photos.db DATABASE
             images = DBOperator.execute_query(MEDIA_QUERY, images_conn, self.photosDB, self.logFile)
             f,csvWritter =  IOOperator.createCSV(self.output_path+'/'+EXPORT_FILES['images'])
             csvWritter.writerow(PHOTOS_CSV)
-
-            print(colored('-> Thumbnails and media:','cyan'), end=' ')    #Thumbnail & Media
-            try:
-                if(images == None):
-                    warning = '<Warning: no media or thumbnails available for export>'
-                    print(colored(warning,'yellow'), end=' ')
-                    IOOperator.log(warning, self.logFile)
-                else:
-                    for image in images:
-                        image = list(image)
-                        image[1] = self.ldap2datetime(image[1]).isoformat(" ", "seconds")
-                        image[2] = self.ldap2datetime(image[2]).isoformat(" ", "seconds")
-                        image[3] = self.ldap2datetime(image[3]).isoformat(" ", "seconds")
-                        if image[11] == None and image[10] == None:
-                            if(VERBOSE):
-                                warning = image[0]+' not available for export.'
-                                print(warning)
-                                IOOperator.log(warning,self.logFile)
-                        else:
-                            if image[10] != None:
-                                if self.exportFlag:
-                                    f = open(thumbFolder+'/'+image[0], "wb")    # Export Media
-                                    f.write(image[10])
-                                image[10] = 'False'
-                                image[11] = 'True'
-                                image.append('False')
-                            else:
-                                if self.exportFlag:
-                                    f = open(mediaFolder+'/'+image[0], "wb")     #Export Thumbnail
-                                    f.write(image[11]) 
-                                image[10] = 'True'
-                                image[11] = 'False'
-                                image.append('False')
-                            if(VERBOSE):
-                                print(image[:9])
-                                IOOperator.log(str(image[:9]),self.logFile)   
-                            csvWritter.writerow(image)    
-                            f.close()
-                DBOperator.close_db_conn(images_conn)
-            except Exception as e:
-                print(colored('Failure','red'))
-                print(colored('Photo export failed: '+str(e), 'red'))
-            print(colored('Ok','green'))
+            imgCount = 0
 
             print(colored('-> Wallpaper:','cyan'), end=' ')   #Wallpaper
             try:    
@@ -219,6 +197,7 @@ class YourPhoneParser():
                     IOOperator.log(warning, self.logFile)
                 else:
                     for raw in wallpaper:
+                        imgCount = imgCount+1
                         for ext in MAGIC_NUMBERS:
                             if raw[0].startswith(MAGIC_NUMBERS[ext]):
                                 extension = ext
@@ -232,25 +211,69 @@ class YourPhoneParser():
                         image = Image.open(io.BytesIO(raw[0]))
                         csvrow =['wallpaper.'+extension, 'Null', 'Null', 'Null', 'Null', 'image/'+extension, image.height, image.width, 'Null', 'Null', 'False','False', 'True']
                         csvWritter.writerow(csvrow)                          
-                        if(VERBOSE):
-                            print(csvrow[:9])
-                            IOOperator.log(str(csvrow[:9]),self.logFile)  
-                DBOperator.close_db_conn(images_conn)          
+                        IOOperator.printOut(csvrow[:9])
+                        IOOperator.log(str(csvrow[:9]),self.logFile)  
+                DBOperator.close_db_conn(images_conn)
+                print(colored('Ok','green'))          
             except Exception as e:
                 print(colored('Wallpaper export failed: '+str(e), 'red'))
-            print(colored('Ok\n','green'))
-
+            
+            print(colored('-> Thumbnails and media:','cyan'), end=' ')    #Thumbnail & Media
+            try:
+                if(images == None):
+                    warning = '<Warning: no media or thumbnails available for export>'
+                    print(colored(warning,'yellow'), end=' ')
+                    IOOperator.log(warning, self.logFile)
+                else:                    
+                    for image in images:
+                        image = list(image)
+                        image[1] = self.ldap2datetime(image[1]).isoformat(" ", "seconds")
+                        image[2] = self.ldap2datetime(image[2]).isoformat(" ", "seconds")
+                        image[3] = self.ldap2datetime(image[3]).isoformat(" ", "seconds")
+                        if image[11] == None and image[10] == None:                           
+                            warning = image[0]+' not available for export.'
+                            IOOperator.printOut(warning)
+                            IOOperator.log(warning,self.logFile)
+                        else:
+                            if image[10] != None:
+                                if self.exportFlag:
+                                    f = open(thumbFolder+'/'+image[0], "wb")    # Export Thumbnail
+                                    f.write(image[10])
+                                image[10] = 'False'
+                                image[11] = 'True'
+                                image.append('False')
+                            else:
+                                if self.exportFlag:
+                                    f = open(mediaFolder+'/'+image[0], "wb")     #Export Media
+                                    f.write(image[11]) 
+                                image[10] = 'True'
+                                image[11] = 'False'
+                                image.append('False')                           
+                            IOOperator.printOut(image[:9])
+                            IOOperator.log(str(image[:9]),self.logFile)   
+                            csvWritter.writerow(image)    
+                            f.close()
+                            imgCount = imgCount+1
+                DBOperator.close_db_conn(images_conn)
+                print(colored('Ok','green'))
+            except Exception as e:
+                print(colored('Failure','red'))
+                print(colored('Photo export failed: '+str(e), 'red'))
+                
+            print('-> Images exported:',imgCount)
+            print()
         except Exception as e:
             print(colored('Failure','red'))
             print(colored('Images export failed: '+str(e), 'red'))   
             
     def process_settings(self):
-        print(colored('Parsing settings','cyan'), end=' ')
+        print(colored('Parsing settings:','cyan'), end=' ')
         try:
             settingsDB_conn = DBOperator.create_db_conn(self.settings)  # contact.db DATABASE
             phoneApps = DBOperator.execute_query(SETTINGS_QUERY, settingsDB_conn, self.settings, self.logFile)
             f,csvWritter =  IOOperator.createCSV(self.output_path+'/'+EXPORT_FILES['settings'])
             csvWritter.writerow(SETTINGS_CSV)
+
             if(phoneApps == None):
                 warning = '<Warning: empty settings database>'
                 print(colored(warning,'yellow'), end=' ')
@@ -259,14 +282,16 @@ class YourPhoneParser():
                 for app in phoneApps:
                     app = list(app)
                     app[3] = self.ldap2datetime(app[3]).isoformat(" ", "seconds")
-                    if(VERBOSE): 
-                        print(app)
+                    IOOperator.printOut(app)
                     csvWritter.writerow(app)
             f.close()
+            print(colored('Ok','green'))  
+            print('-> Total apps:',len(phoneApps))
+            print()
         except Exception as e:
             print(colored('Failure','red'))
             print(colored('Settings parser failed: '+str(e), 'red'))
-        print(colored('Ok\n','green'))           
+                 
 
 def setup_args():
     parser = argparse.ArgumentParser(description='Forensic analyzer of Microsoft Your Phone App')
@@ -280,7 +305,7 @@ def setup_args():
 
 def main(args):
     start_time = time.time()
-    print(colored('Your Phone forensic analyzer.\n','cyan'))
+    print(colored('\n<<Your Phone forensic analyzer>>\n','cyan'))
 
     input_path = args['input']
     output_path = args['output']
@@ -304,7 +329,7 @@ def main(args):
     deviceDataDB = input_path+'/'+DATABASES['deviceData']
 
     YourPhone = YourPhoneParser(output_path, contactDB, phoneDB, callingDB, photosDB, settingsDB, deviceDataDB, exportFlag)
-    #YourPhone.process_contactsDB()
+    YourPhone.process_contactsDB()
     YourPhone.process_settings()
     YourPhone.process_images()
 

@@ -1,4 +1,5 @@
 import argparse
+import cv2
 import csv
 import sys
 import os
@@ -11,6 +12,7 @@ from halo import Halo                       #Pip3 install Halo          https://
 from termcolor import colored               #Pip3 install colored       https://pypi.org/project/colored/
 from PIL import Image                       #Pip3 install Image         https://pillow.readthedocs.io/en/stable/handbook/tutorial.html
 from constants import *
+import faces
 
 #TODO#
 #
@@ -243,16 +245,19 @@ class YourPhoneParser():
             if self.exportFlag:
                 thumbFolder = self.output_path+'/'+EXPORT_FOLDERS['thumb']
                 mediaFolder = self.output_path+'/'+EXPORT_FOLDERS['media'] 
-                wallpaperFolder = self.output_path+'/'+EXPORT_FOLDERS['wallpaper'] 
+                wallpaperFolder = self.output_path+'/'+EXPORT_FOLDERS['wallpaper']
+                facesFolder = self.output_path+'/'+EXPORT_FOLDERS['faces']  
                 IOOperator.createFolder(thumbFolder)
                 IOOperator.createFolder(mediaFolder)
                 IOOperator.createFolder(wallpaperFolder)
+                IOOperator.createFolder(facesFolder)
             images_conn = DBOperator.create_db_conn(self.photosDB)  # photos.db DATABASE
             images = DBOperator.execute_query(MEDIA_QUERY, images_conn, self.photosDB, self.logFile)
             f,csvWritter =  IOOperator.createCSV(self.output_path+'/'+EXPORT_FILES['images'])
             csvWritter.writerow(PHOTOS_CSV)
             imgCount = 0
-            #print(colored('-> Wallpaper:','cyan'), end=' ')   #Wallpaper
+            #Face extractor
+            face_extractor_model = faces.face_extractor('model_data/')
             try:
                 images_conn = DBOperator.create_db_conn(self.deviceDataDB)  # deviceData.db DATABASE
                 wallpaper = DBOperator.execute_query(WALLPAPER_QUERY, images_conn, self.deviceDataDB, self.logFile)
@@ -273,6 +278,7 @@ class YourPhoneParser():
                         elif self.exportFlag:
                             f = open(wallpaperFolder+'/wallpaper.'+extension, "wb")
                             f.write(raw[0])
+                            face_extractor_model.extract_face(byteImg=raw[0], output_path=facesFolder, filename='/wallpaper.'+extension)
                             f.close()
                         image = Image.open(io.BytesIO(raw[0]))
                         csvrow =['wallpaper.'+extension, 'Null', 'Null', 'Null', 'Null', 'image/'+extension, image.height, image.width, 'Null', 'Null', 'False','False', 'True']
@@ -306,6 +312,7 @@ class YourPhoneParser():
                             if image[10] != None:
                                 if self.exportFlag:
                                     f = open(thumbFolder+'/'+image[0], "wb")    # Export Thumbnail
+                                    face_extractor_model.extract_face(byteImg=image[10], output_path=facesFolder,filename=image[0])
                                     f.write(image[10])
                                 image[10] = 'False'
                                 image[11] = 'True'
@@ -313,7 +320,8 @@ class YourPhoneParser():
                             else:
                                 if self.exportFlag:
                                     f = open(mediaFolder+'/'+image[0], "wb")     #Export Media
-                                    f.write(image[11]) 
+                                    face_extractor_model.extract_face(byteImg=image[11], output_path=facesFolder,filename=image[0])
+                                    f.write(image[11])
                                 image[10] = 'True'
                                 image[11] = 'False'
                                 image.append('False')                           

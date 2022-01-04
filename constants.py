@@ -55,7 +55,8 @@ DATABASES ={
 EXPORT_FOLDERS = {
     'thumb': 'thumbnails',
     'media': 'media',
-    'wallpaper': 'wallpaper'
+    'wallpaper': 'wallpaper',
+    'faces': 'faces_found'
 }
 EXPORT_FILES = {
     'settings': 'settings.csv',

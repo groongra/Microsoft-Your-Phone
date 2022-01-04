@@ -6,12 +6,11 @@ import io
 import re
 import time
 import sqlite3
-from halo import Halo #Pip3 install Halo
 from datetime import datetime, timedelta
-from termcolor import colored
+from halo import Halo                       #Pip3 install Halo          https://github.com/manrajgrover/halo
+from termcolor import colored               #Pip3 install colored       https://pypi.org/project/colored/
+from PIL import Image                       #Pip3 install Image         https://pillow.readthedocs.io/en/stable/handbook/tutorial.html
 from constants import *
-from PIL import Image   #Pip3 install Image
-
 
 #TODO#
 #

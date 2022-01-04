@@ -1,3 +1,4 @@
 /media/*
 /thumbnails/*
 log.txt
+*.pyc

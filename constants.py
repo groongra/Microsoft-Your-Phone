@@ -8,7 +8,13 @@ SETTINGS_QUERY = "SELECT app_name, version, favorite_rank, last_updated_time FRO
 SETTINGS_CSV = ['Application', 'Version', 'Favorite rank', 'Last updated time']
 MEDIA_QUERY = "SELECT name, last_updated_time, taken_time, last_seen_time, orientation, mime_type, height, width, size,	uri, thumbnail,	media FROM media" #checksum
 WALLPAPER_QUERY = "SELECT blob FROM wallpaper"
+
+CALLS_CSV = ['Phone number', 'Duration', 'Type of call', 'Is read', 'Start time', 'Last updated time', 'Phone account id']
+NO_CALL_CSV = ['Phone number','Null','Null','Null','Null','Null','Null']
+CHAT_CSV = ['Recipient list', 'Msg count', 'Unread count', 'Has rcs', 'Phone unread count', 'Last message timestamp',]
+SMS_CSV = ['From', 'Type', 'timestamp', 'status', 'pc_status']
 PHOTOS_CSV = ['Name', 'Last updated time', 'Taken time', 'Last seen time', 'Orientation', 'Mime type', 'Height', 'Width', 'Size', 'Uri', 'Is Thumbnail','Is Media', 'Is Wallpaper']
+WALLPAPER_CSV = ['Name', 'Null', 'Null', 'Null', 'Null', 'extension', 'height', 'width', 'Null', 'Null', 'False','False', 'True']
 
 PHONE_TYPE = {
     1: 'Home phone number',
@@ -56,26 +62,28 @@ EXPORT_FOLDERS = {
     'thumb': 'thumbnails',
     'media': 'media',
     'wallpaper': 'wallpaper',
-    'faces': 'faces_found'
+    'faces': 'faces_found',
+    'suspects':'suspects',
+    'csv':'csv'
 }
 EXPORT_FILES = {
     'settings': 'settings.csv',
     'images':'images.csv'
 }
 
-MAGIC_NUMBERS = {'png': bytes([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]),
-                 'jpg': bytes([0xFF, 0xD8, 0xFF, 0xE0]),
+MAGIC_NUMBERS = {'.png': bytes([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]),
+                 '.jpg': bytes([0xFF, 0xD8, 0xFF, 0xE0]),
                  #*********************#
-                 'doc': bytes([0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1]),
-                 'xls': bytes([0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1]),
-                 'ppt': bytes([0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1]),
-                 #*********************#
-                 'docx': bytes([0x50, 0x4B, 0x03, 0x04, 0x14, 0x00, 0x06, 0x00]),
-                 'xlsx': bytes([0x50, 0x4B, 0x03, 0x04, 0x14, 0x00, 0x06, 0x00]),
-                 'pptx': bytes([0x50, 0x4B, 0x03, 0x04, 0x14, 0x00, 0x06, 0x00]),
-                 #*********************#
-                 'pdf': bytes([0x25, 0x50, 0x44, 0x46]),
-                 #*********************#
-                 'dll': bytes([0x4D, 0x5A, 0x90, 0x00]),
-                 'exe': bytes([0x4D, 0x5A]),
+                #  '.doc': bytes([0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1]),
+                #  '.xls': bytes([0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1]),
+                #  '.ppt': bytes([0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1]),
+                #  #*********************#
+                #  '.docx': bytes([0x50, 0x4B, 0x03, 0x04, 0x14, 0x00, 0x06, 0x00]),
+                #  '.xlsx': bytes([0x50, 0x4B, 0x03, 0x04, 0x14, 0x00, 0x06, 0x00]),
+                #  '.pptx': bytes([0x50, 0x4B, 0x03, 0x04, 0x14, 0x00, 0x06, 0x00]),
+                #  #*********************#
+                #  '.pdf': bytes([0x25, 0x50, 0x44, 0x46]),
+                #  #*********************#
+                #  '.dll': bytes([0x4D, 0x5A, 0x90, 0x00]),
+                #  '.exe': bytes([0x4D, 0x5A]),
                  }

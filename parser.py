@@ -1,5 +1,5 @@
 import argparse
-import cv2
+import uuid
 import csv
 import sys
 import os
@@ -91,7 +91,7 @@ class DBOperator():
 
 class YourPhoneParser():
 
-    def __init__(self, output_path, contactDB, phoneDB, callingDB, photosDB, settingsDB, deviceDataDB, exportFlag=False):
+    def __init__(self, output_path, contactDB, phoneDB, callingDB, photosDB, settingsDB, deviceDataDB, exportFlag=False, searchPhone=''):
         self.output_path = output_path
         self.contactDB = contactDB
         self.phoneDB = phoneDB
@@ -100,6 +100,7 @@ class YourPhoneParser():
         self.settingsDB = settingsDB
         self.deviceDataDB = deviceDataDB
         self.exportFlag = exportFlag
+        self.searchPhone = searchPhone
         self.logFile = IOOperator.openLog(output_path)
         self.spinner = Halo(text='', spinner='dots')
         
@@ -113,25 +114,23 @@ class YourPhoneParser():
         # https://newbedev.com/how-to-convert-ldap-timestamp-to-unix-timestamp
         # https://stackoverflow.com/questions/5951157/if-in-select-statement-choose-output-value-based-on-column-values
 
-    def process_phone(self):
-        
+    def search_contacts_calls_sms_mms(self):
         try:
             print(colored('Parsing databases:','cyan'))
             IOOperator.startSpinner(self.spinner,'Loading','cyan')
             contactDB_conn = DBOperator.create_db_conn(self.contactDB)  # contact.db DATABASE
-
-            ### Calls, sms and mms associated with contact
             smsCount = 0
             phone_Processed = []
             calls_Processed = []
             conversation_Processed = []
             country_code_regex = re.compile(COUNTRY_CODE_REGEX)
-            contacts = DBOperator.execute_query(CONTACT_INFO_QUERY, contactDB_conn, self.contactDB, self.logFile)
+            raw_phone_number = country_code_regex.sub('', self.searchPhone)
+            contacts = DBOperator.execute_query(CONTACT_INFO_QUERY+' WHERE contact_id = (SELECT contact_id FROM phonenumber WHERE phone_number LIKE \'%'+str(raw_phone_number)+'%\')', contactDB_conn, self.contactDB, self.logFile)
             for contact in contacts:
                 contact = list(contact)
                 contact[10] = self.ldap2datetime(contact[10]).isoformat(" ", "seconds")
                 IOOperator.printOut(contact[1:])
-                phone_numbers = DBOperator.execute_query(CONTACT_PHONE_QUERY+' WHERE contact_id='+str(contact[0]), contactDB_conn, self.contactDB, self.logFile)
+                phone_numbers = DBOperator.execute_query(CONTACT_PHONE_QUERY+' WHERE contact_id ='+str(contact[0]), contactDB_conn, self.contactDB, self.logFile)
                 for phone in phone_numbers:
                     phone_Processed.append(phone[0])
                     raw_phone_number = country_code_regex.sub('', phone[2])
@@ -140,7 +139,6 @@ class YourPhoneParser():
                     IOOperator.printOut(phone[2:])
                     callingDB_conn = DBOperator.create_db_conn(self.callingDB)  # calling.db DATABASE
                     calls =  DBOperator.execute_query(CALLING_QUERY+' WHERE phone_number LIKE \'%'+str(raw_phone_number)+'%\'',callingDB_conn, self.callingDB, self.logFile)
-
                     for call in calls:
                         if call[0] not in calls_Processed:
                             calls_Processed.append(call[0])
@@ -150,9 +148,11 @@ class YourPhoneParser():
                         call[5] = self.ldap2datetime(call[5]).isoformat(" ", "seconds")
                         call[6] = self.ldap2datetime(call[6]).isoformat(" ", "seconds")
                         IOOperator.printOut('Call ->\t'+str(call[1:])) #[2:] TO SKIP PHONE NUMBER#
+                        #csvCalls.writerow(call[:1])
                         
                     phoneDB_conn = DBOperator.create_db_conn(self.phoneDB)   # phone.db DATABASE
                     sms_mms_conversation = DBOperator.execute_query(CONVERSATION_SMS_MMS_QUERY +' WHERE recipient_list LIKE \'%'+str(raw_phone_number)+'%\'',phoneDB_conn, self.phoneDB, self.logFile)
+        
                     for conversation in sms_mms_conversation:
                         if conversation[0] not in conversation_Processed:
                             conversation_Processed.append(conversation[0])
@@ -173,6 +173,80 @@ class YourPhoneParser():
                                 IOOperator.printOut(colored('-\t'+str(sms[3:]), 'blue'))
                             else:
                                 IOOperator.printOut(colored('Unexpected TODO', 'red'))
+        except Exception as e:
+            IOOperator.stop_and_persist_spinner(self.spinner, symbol='❌',text='Search',color='red')
+            print(colored(str(e), 'red'))
+
+    def process_contacts_calls_sms_mms(self):
+        
+        try:
+            print(colored('Parsing databases:','cyan'))
+            IOOperator.startSpinner(self.spinner,'Loading','cyan')
+            contactDB_conn = DBOperator.create_db_conn(self.contactDB)  # contact.db DATABASE
+
+            ### Calls, sms and mms associated with contact
+            smsCount = 0
+            phone_Processed = []
+            calls_Processed = []
+            conversation_Processed = []
+            country_code_regex = re.compile(COUNTRY_CODE_REGEX)
+            contacts = DBOperator.execute_query(CONTACT_INFO_QUERY, contactDB_conn, self.contactDB, self.logFile)
+            for contact in contacts:
+                contact = list(contact)
+                contact[10] = self.ldap2datetime(contact[10]).isoformat(" ", "seconds")
+                IOOperator.printOut(contact[1:])
+                
+                #contactFolder = self.output_path+'/'+contact[1]
+                #IOOperator.createFolder(contactFolder)
+                #fcall,csvCalls =  IOOperator.createCSV(contactFolder+'/'+EXPORT_FOLDERS['csv']+'/calls.csv')
+                #csvCalls.writerow(CALLS_CSV)
+                phone_numbers = DBOperator.execute_query(CONTACT_PHONE_QUERY+' WHERE contact_id='+str(contact[0]), contactDB_conn, self.contactDB, self.logFile)
+                for phone in phone_numbers:
+                    phone_Processed.append(phone[0])
+                    raw_phone_number = country_code_regex.sub('', phone[2])
+                    phone = list(phone)
+                    phone[4] = PHONE_TYPE[phone[4]]
+                    IOOperator.printOut(phone[2:])
+                    callingDB_conn = DBOperator.create_db_conn(self.callingDB)  # calling.db DATABASE
+                    calls =  DBOperator.execute_query(CALLING_QUERY+' WHERE phone_number LIKE \'%'+str(raw_phone_number)+'%\'',callingDB_conn, self.callingDB, self.logFile)
+                    #if calls == []:
+                    #    csvCalls.writerow(NO_CALL_CSV)
+                    for call in calls:
+                        if call[0] not in calls_Processed:
+                            calls_Processed.append(call[0])
+                        call = list(call)
+                        call[3] = CALL_TYPE[call[3]]
+                        call[4] = IS_READ_TYPE[call[4]]
+                        call[5] = self.ldap2datetime(call[5]).isoformat(" ", "seconds")
+                        call[6] = self.ldap2datetime(call[6]).isoformat(" ", "seconds")
+                        IOOperator.printOut('Call ->\t'+str(call[1:])) #[2:] TO SKIP PHONE NUMBER#
+                        #csvCalls.writerow(call[:1])
+                        
+                    phoneDB_conn = DBOperator.create_db_conn(self.phoneDB)   # phone.db DATABASE
+                    sms_mms_conversation = DBOperator.execute_query(CONVERSATION_SMS_MMS_QUERY +' WHERE recipient_list LIKE \'%'+str(raw_phone_number)+'%\'',phoneDB_conn, self.phoneDB, self.logFile)
+        
+                    for conversation in sms_mms_conversation:
+                        if conversation[0] not in conversation_Processed:
+                            conversation_Processed.append(conversation[0])
+                        conversation = list(conversation)
+                        conversation[6] = self.ldap2datetime(conversation[6]).isoformat(" ", "seconds")
+                        IOOperator.printOut('Conv ->'+str(conversation[1:]))
+                        sms_list = DBOperator.execute_query(SMS_QUERY+' WHERE thread_id=' +str(conversation[0])+' ORDER BY timestamp ASC',phoneDB_conn, self.phoneDB, self.logFile)
+                        for sms in sms_list:
+                            smsCount = smsCount+1
+                            sms = list(sms)
+                            sms[2] = SMS_TYPE[sms[2]]
+                            sms[3] = self.ldap2datetime(sms[3]).isoformat(" ", "seconds")
+                            sms[4] = SMS_STATUS[sms[4]]
+                            sms[5] = SMS_PC_STATUS[sms[5]]
+                            if(sms[2] == SMS_TYPE[1]):
+                                IOOperator.printOut(colored('+\t'+str(sms[3:]), 'green'))
+                            elif(sms[2] == SMS_TYPE[2]):
+                                IOOperator.printOut(colored('-\t'+str(sms[3:]), 'blue'))
+                            else:
+                                IOOperator.printOut(colored('Unexpected TODO', 'red'))
+                #fcall.close()
+                #fchat.close()
                 IOOperator.printOut()
 
             IOOperator.stop_and_persist_spinner(self.spinner, symbol='✔',text='Phone, calls, sms and mms from contacts',color='cyan')
@@ -246,18 +320,23 @@ class YourPhoneParser():
                 thumbFolder = self.output_path+'/'+EXPORT_FOLDERS['thumb']
                 mediaFolder = self.output_path+'/'+EXPORT_FOLDERS['media'] 
                 wallpaperFolder = self.output_path+'/'+EXPORT_FOLDERS['wallpaper']
-                facesFolder = self.output_path+'/'+EXPORT_FOLDERS['faces']  
+                #facesFolder = self.output_path+'/'+EXPORT_FOLDERS['faces']
+                suspectsFolder = self.output_path+'/'+EXPORT_FOLDERS['suspects']    
                 IOOperator.createFolder(thumbFolder)
                 IOOperator.createFolder(mediaFolder)
                 IOOperator.createFolder(wallpaperFolder)
-                IOOperator.createFolder(facesFolder)
+                #IOOperator.createFolder(facesFolder)
+                IOOperator.createFolder(suspectsFolder)
+
             images_conn = DBOperator.create_db_conn(self.photosDB)  # photos.db DATABASE
             images = DBOperator.execute_query(MEDIA_QUERY, images_conn, self.photosDB, self.logFile)
             f,csvWritter =  IOOperator.createCSV(self.output_path+'/'+EXPORT_FILES['images'])
             csvWritter.writerow(PHOTOS_CSV)
             imgCount = 0
-            #Face extractor
-            face_extractor_model = faces.face_extractor('model_data/')
+            
+            faceOperator = faces.faceOperator('model_data/')
+            img_face_tuples  = []
+
             try:
                 images_conn = DBOperator.create_db_conn(self.deviceDataDB)  # deviceData.db DATABASE
                 wallpaper = DBOperator.execute_query(WALLPAPER_QUERY, images_conn, self.deviceDataDB, self.logFile)
@@ -276,9 +355,11 @@ class YourPhoneParser():
                         if(extension == ''):
                             IOOperator.log('<Warning: Unknown extension for wallpaper>',self.logFile)
                         elif self.exportFlag:
-                            f = open(wallpaperFolder+'/wallpaper.'+extension, "wb")
+                            filename = str(uuid.uuid4())+extension
+                            f = open(wallpaperFolder+'/'+filename, "wb")
                             f.write(raw[0])
-                            face_extractor_model.extract_face(byteImg=raw[0], output_path=facesFolder, filename='/wallpaper.'+extension)
+                            #faceOperator.extract_faces(byteImg=raw[0], output_path=facesFolder, filename='/wallpaper.'+extension)
+                            img_face_tuples.extend(faceOperator.find_faces(byteImg=raw[0],img_name=filename))
                             f.close()
                         image = Image.open(io.BytesIO(raw[0]))
                         csvrow =['wallpaper.'+extension, 'Null', 'Null', 'Null', 'Null', 'image/'+extension, image.height, image.width, 'Null', 'Null', 'False','False', 'True']
@@ -312,7 +393,8 @@ class YourPhoneParser():
                             if image[10] != None:
                                 if self.exportFlag:
                                     f = open(thumbFolder+'/'+image[0], "wb")    # Export Thumbnail
-                                    face_extractor_model.extract_face(byteImg=image[10], output_path=facesFolder,filename=image[0])
+                                    #faceOperator.extract_faces(byteImg=image[10], output_path=facesFolder,img_name=image[0])
+                                    img_face_tuples.extend(faceOperator.find_faces(byteImg=image[10],img_name=image[0]))
                                     f.write(image[10])
                                 image[10] = 'False'
                                 image[11] = 'True'
@@ -320,7 +402,8 @@ class YourPhoneParser():
                             else:
                                 if self.exportFlag:
                                     f = open(mediaFolder+'/'+image[0], "wb")     #Export Media
-                                    face_extractor_model.extract_face(byteImg=image[11], output_path=facesFolder,filename=image[0])
+                                    #faceOperator.extract_faces(byteImg=image[11], output_path=facesFolder,img_name=image[0])
+                                    img_face_tuples.extend(faceOperator.find_faces(byteImg=image[11],img_name=image[0]))
                                     f.write(image[11])
                                 image[10] = 'True'
                                 image[11] = 'False'
@@ -329,7 +412,7 @@ class YourPhoneParser():
                             IOOperator.log(str(image[:9]),self.logFile)   
                             csvWritter.writerow(image)    
                             f.close()
-                            imgCount = imgCount+1
+                            imgCount = imgCount+1 
                 DBOperator.close_db_conn(images_conn)
                 IOOperator.stop_and_persist_spinner(self.spinner, symbol='✔',text='Thumbnails and media',color='cyan') 
                 #print(colored('-> Thumbnails and media:','cyan'), end=' ')    #Thumbnail & Media
@@ -337,8 +420,21 @@ class YourPhoneParser():
             except Exception as e:
                 IOOperator.stop_and_persist_spinner(self.spinner, symbol='❌',text='Thumbnails and media',color='red')
                 print(colored(str(e), 'red'))
-                
-            print('-> Images exported:',imgCount)
+            
+            nFoundFaces = len(img_face_tuples)
+            nExportedFaces = 0
+            try:
+                IOOperator.startSpinner(self.spinner,'Loading','cyan')
+                nExportedFaces = faceOperator.export_similar(img_face_tuples, output_path=suspectsFolder)
+                IOOperator.stop_and_persist_spinner(self.spinner, symbol='✔',text='Suspect faces',color='cyan')
+            except Exception as e:
+                IOOperator.stop_and_persist_spinner(self.spinner, symbol='❌',text='Suspect faces',color='red') 
+                print(colored(str(e), 'red'))
+
+            print('|--> Images exported:',imgCount)
+            print('|--> Faces found:', nFoundFaces)
+            print('  |--> Recognizable:', nExportedFaces)
+        
         except Exception as e:
             IOOperator.stop_and_persist_spinner(self.spinner, symbol='❌',text='Photos, thumbnails and wallpaper',color='red') 
             print(colored(str(e), 'red'))
@@ -391,8 +487,8 @@ def main(args):
     
     global VERBOSE 
     VERBOSE = args['verbose']
-    contactName = args['contactName']
-    contactPhone = args['contactPhone']
+    searchName = args['contactName']
+    searchPhone = args['contactPhone']
 
     if(input_path == None):
         sys.exit('Invalid input path.')
@@ -410,13 +506,17 @@ def main(args):
     photosDB = input_path+'/'+DATABASES['photos']
     settingsDB = input_path+'/'+DATABASES['settings']
     deviceDataDB = input_path+'/'+DATABASES['deviceData']
+    YourPhone = YourPhoneParser(output_path, contactDB, phoneDB, callingDB, photosDB, settingsDB, deviceDataDB, exportFlag=exportFlag, searchPhone=searchPhone)
 
-    YourPhone = YourPhoneParser(output_path, contactDB, phoneDB, callingDB, photosDB, settingsDB, deviceDataDB, exportFlag)
-    YourPhone.process_phone()
-    print()
+    if(searchPhone != None or searchName != None):
+        YourPhone.search_contacts_calls_sms_mms()
+    else:
+        YourPhone.process_contacts_calls_sms_mms()
+    
+    #print()
     YourPhone.process_settings()
-    print()
-    YourPhone.process_images()
+    #print()
+    #YourPhone.process_images()
     print()
     total_time = round(time.time() - start_time, 2)
     print('Elapsed time: ' + str(total_time) + 's')

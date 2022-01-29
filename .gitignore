@@ -1,4 +1,3 @@
-/media/*
-/thumbnails/*
+/myFolderForResults/*
 log.txt
 *.pyc

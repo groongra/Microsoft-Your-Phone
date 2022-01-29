@@ -1,3 +1,4 @@
+import os
 import cv2
 import numpy as np
 from deepface import DeepFace
@@ -9,38 +10,63 @@ MODELS = ["VGG-Face", "Facenet", "Facenet512", "OpenFace", "DeepFace", "DeepID",
 METRICS = ["cosine", "euclidean", "euclidean_l2"]
 BACKENDS = ['opencv', 'ssd', 'dlib', 'mtcnn', 'retinaface']
 
-class face_comparer():
+MODEL = MODELS[1]
+METRIC = METRICS[2]
+BACKEND = BACKENDS[3]
 
-	def __init__(self):
-		self.model = DeepFace.build_model(MODELS[2])
-
-class face_extractor():
-	# Define paths
-	#base_dir = os.path.dirname(__file__)
-	#prototxt_path = os.path.join(base_dir + 'model_data/deploy.prototxt')
-	#caffemodel_path = os.path.join(base_dir + 'model_data/weights.caffemodel')
-
-	# Read the model
-	#model = cv2.dnn.readNetFromCaffe(prototxt_path, caffemodel_path)
+class faceOperator():
 
 	def __init__(self,model_data_path):
-		self.model = cv2.dnn.readNetFromCaffe(model_data_path+'deploy.prototxt', model_data_path+'weights.caffemodel')
+		self.deepFace_model = DeepFace.build_model(MODELS[2])
+		self.openCV_model = cv2.dnn.readNetFromCaffe(model_data_path+'deploy.prototxt', model_data_path+'weights.caffemodel')
 
-	def find_faces(self,byteImg):
+	def export_similar(self,faces,output_path):
+		
+		#Remove non recognizable faces
+		i = 0
+		while i < len(faces):
+			img_name, face = faces[i]
+			try:
+				DeepFace.detectFace(face, detector_backend=BACKEND) # ,detector_backend=BACKEND
+				i=i+1
+			except Exception:
+				faces.pop(i)
+		recognizableFaces = len(faces)
+
+		#Export similar faces
+		suspectID = 0
+		while 0 < len(faces):
+			suspect = 'suspect-'+str(suspectID)
+			if not os.path.exists(output_path+'/'+suspect):
+				os.makedirs(output_path+'/'+suspect)
+			j = 0
+			img_name1, face1 = faces[0]
+			while j < len(faces):
+				img_name2, face2 = faces[j]
+				result = DeepFace.verify(face1, face2, model_name=MODEL, distance_metric=METRIC, model=self.deepFace_model, detector_backend=BACKEND, prog_bar=True)
+				if result['verified']:
+					cv2.imwrite(output_path+'/'+suspect+'/'+img_name2, face2)
+					faces.pop(j)
+				else:
+					j = j+1
+			suspectID = suspectID+1
+		return recognizableFaces
+	def find_faces(self,byteImg,img_name):
 		image = cv2.imdecode(np.frombuffer(byteImg, np.uint8), -1)
 		(h, w) = image.shape[:2]
 		blob = cv2.dnn.blobFromImage(cv2.resize(image, (300, 300)), 1.0, (300, 300), (104.0, 177.0, 123.0))
-		self.model.setInput(blob)
-		detections = self.model.forward()
-		foundFaces = []
+		self.openCV_model.setInput(blob)
+		detections = self.openCV_model.forward()
+		facesTuples = []
+		faceCount = 0
 		# Identify each face
 		for i in range(0, detections.shape[2]):
 			box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
 			(startX, startY, endX, endY) = box.astype("int")
-
 			confidence = detections[0, 0, i, 2]
 			# If confidence > 0.5, save it as a separate file
 			if (confidence > 0.5):
+				faceCount=faceCount+1
 				if(startY-PADDING>=0):
 					startY = startY - PADDING
 				else: 
@@ -57,12 +83,6 @@ class face_extractor():
 					endX = endX + PADDING
 				else: 
 					endX = w
-				foundFaces.append(image[startY:endY, startX:endX])
-		return(foundFaces)
-
-	def extract_face(self, byteImg, output_path, filename):
-		facesFound = self.find_faces(byteImg)
-		i = 0
-		for face in facesFound:
-			cv2.imwrite(output_path+'/face_'+str(i)+'_'+filename, face)
-			i=i+1
+				face_img_name = 'face_'+str(faceCount)+'_'+img_name
+				facesTuples.append([face_img_name, image[startY:endY, startX:endX]]) #e.g tuple [123456789.jpg , [ndarray]]
+		return facesTuples

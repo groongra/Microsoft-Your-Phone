@@ -1,5 +1,7 @@
 import os
+import io
 import cv2
+from PIL import Image   
 import numpy as np
 from deepface import DeepFace
 
@@ -10,9 +12,9 @@ MODELS = ["VGG-Face", "Facenet", "Facenet512", "OpenFace", "DeepFace", "DeepID",
 METRICS = ["cosine", "euclidean", "euclidean_l2"]
 BACKENDS = ['opencv', 'ssd', 'dlib', 'mtcnn', 'retinaface']
 
-MODEL = MODELS[1]
+MODEL = MODELS[0]
 METRIC = METRICS[2]
-BACKEND = BACKENDS[3]
+BACKEND = BACKENDS[0]
 
 class faceOperator():
 
@@ -51,6 +53,63 @@ class faceOperator():
 					j = j+1
 			suspectID = suspectID+1
 		return recognizableFaces
+	
+	def search_face_profile(self,faces,output_path):
+		#Remove non recognizable faces
+		i = 0
+		while i < len(faces):
+			img_name, face = faces[i]
+			try:
+				DeepFace.detectFace(face, detector_backend=BACKEND) # ,detector_backend=BACKEND
+				i=i+1
+			except Exception:
+				faces.pop(i)
+		recognizableFaces = len(faces)
+
+		#Export similar faces
+		
+	
+
+	def search_faces(self,faces,searchFaces,output_path):
+		
+		#Remove non recognizable faces
+		i = 0
+		while i < len(faces):
+			img_name, face = faces[i]
+			try:
+				DeepFace.detectFace(face, detector_backend=BACKEND) # ,detector_backend=BACKEND
+				i=i+1
+			except Exception:
+				faces.pop(i)
+		recognizableFaces = len(faces)
+
+		#Remove non recognizable search faces
+		i = 0
+		while i < len(searchFaces):
+			img_name, face = searchFaces[i]
+			try:
+				DeepFace.detectFace(face, detector_backend=BACKEND) # ,detector_backend=BACKEND
+				i=i+1
+			except Exception:
+				searchFaces.pop(i)
+		recognizableSearchFaces = len(searchFaces)
+
+		#Export matched faces
+		i = 0
+		while i < len(searchFaces):
+			img_name1, face1 = searchFaces[i]
+			j = 0
+			while j < len(faces):
+				img_name2, face2 = faces[j]
+				result = DeepFace.verify(face1, face2, model_name=MODEL, distance_metric=METRIC, model=self.deepFace_model, detector_backend=BACKEND, prog_bar=True)
+				if result['verified']:
+					if not os.path.exists(output_path+'/'+img_name1):
+						os.makedirs(output_path+'/'+img_name1)
+					cv2.imwrite(output_path+'/'+img_name1+'/'+img_name2, face2)
+				j = j+1
+			i= i+1
+		return recognizableFaces, recognizableSearchFaces
+	
 	def find_faces(self,byteImg,img_name):
 		image = cv2.imdecode(np.frombuffer(byteImg, np.uint8), -1)
 		(h, w) = image.shape[:2]
@@ -86,3 +145,17 @@ class faceOperator():
 				face_img_name = 'face_'+str(faceCount)+'_'+img_name
 				facesTuples.append([face_img_name, image[startY:endY, startX:endX]]) #e.g tuple [123456789.jpg , [ndarray]]
 		return facesTuples
+
+	def obtain_faces_from_images_folder(self, path):
+		search_face_tuples = []
+		valid_images = [".jpg",".gif",".png",".tga"]
+		for f in os.listdir(path):
+			filename,ext = os.path.splitext(f)
+			if ext.lower() not in valid_images:
+				continue
+			b = io.BytesIO()
+			image = Image.open(path+'/'+f)
+			image.save(b, format='png')
+			search_face_tuples.extend(self.find_faces(b.getvalue(),filename))
+		return search_face_tuples
+        

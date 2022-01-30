@@ -1,6 +1,8 @@
-/myFolderForResults/*
-/Results/*
-/searchFaces/*
-searchCriteria.csv
-log.txt
+myFolderForResults/*
+./log.txt
 *.pyc
+*.csv
+Results/*
+searchFacesInput/*
+searchFacesCriteria.csv
+

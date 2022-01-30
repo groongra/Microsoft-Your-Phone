@@ -59,11 +59,11 @@ DATABASES ={
     'deviceData':'deviceData.db'
 }
 EXPORT_FOLDERS = {
+    'export':'exported',
     'thumb': 'thumbnails',
     'media': 'media',
     'wallpaper': 'wallpaper',
-    'faces': 'faces_found',
-    'suspects':'suspects',
+    'groupFaceImages':'group_face_images',
     'searchFaceImages':'search_face_images',
     'searchFaceProfiles':'search_face_profiles',
     'csv':'csv'

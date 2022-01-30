@@ -11,13 +11,9 @@
             "program": "parser.py",
             //"program": "${file}",
             "console": "integratedTerminal",
-            //"args": ["-p", "mediaPhotosFolder"]
-            //"args": ["-i", "C:/Users/lucas/AppData/Local/Packages/Microsoft.YourPhone_8wekyb3d8bbwe/LocalCache/Indexed/0857d319-bd80-495f-a54a-34c472f351aa/System/Database", "-o", "./out", "-cn", "Marce", "-p" "."]
             //"args": ["-h"]
-            //"args": ["-i", "C:/Users/lucas/AppData/Local/Packages/Microsoft.YourPhone_8wekyb3d8bbwe/LocalCache/Indexed/0857d319-bd80-495f-a54a-34c472f351aa/System/Database","-p", "-o", "myFolderForResults", "--verbose"]
-            //"args": ["-i", "C:/Users/lucas/AppData/Local/Packages/Microsoft.YourPhone_8wekyb3d8bbwe/LocalCache/Indexed/0857d319-bd80-495f-a54a-34c472f351aa/System/Database","--contactPhone", "searchCriteria.csv", "-o", "myFolderForResults", "--verbose"]
-            //"args": ["-i", "C:/Users/lucas/AppData/Local/Packages/Microsoft.YourPhone_8wekyb3d8bbwe/LocalCache/Indexed/0857d319-bd80-495f-a54a-34c472f351aa/System/Database","--contactPhone", "searchCriteria.csv", "-o", "myFolderForResults", "--searchFaces", "searchFaces"]
-            "args": ["-i", "C:/Users/lucas/Documents/TrabajoFinalDeGrado/Final/YourPhoneApp/Evidences/Microsoft.YourPhone_8wekyb3d8bbwe/LocalCache/Indexed/0857d319-bd80-495f-a54a-34c472f351aa/System/Database","-o", "myFolderForResults","-p","--searchPhoneNumbers","searchPhonesCriteria.csv","--searchFaceProfiles","searchFacesCriteria.csv"]
+            //"args": ["-i", "C:/Users/lucas/Documents/TrabajoFinalDeGrado/Final/YourPhoneApp/Evidences/Microsoft.YourPhone_8wekyb3d8bbwe/LocalCache/Indexed/0857d319-bd80-495f-a54a-34c472f351aa/System/Database","-o", "myFolderForResults","--searchPhoneNumbers","searchPhonesCriteria.csv","--searchFaceProfiles","searchFacesCriteria.csv"]
+            "args": ["-i", "C:/Users/lucas/Documents/TrabajoFinalDeGrado/Final/YourPhoneApp/Evidences/Microsoft.YourPhone_8wekyb3d8bbwe/LocalCache/Indexed/0857d319-bd80-495f-a54a-34c472f351aa/System/Database","-o", "myFolderForResults","-e","--searchPhoneNumbers","searchPhonesCriteria.csv","--searchFaceProfiles","searchFacesCriteria.csv","--searchFaceImages","searchFacesInput"]
         }
     ]
 }

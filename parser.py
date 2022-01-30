@@ -97,15 +97,17 @@ class DBOperator():
 
 class YourPhoneParser():
 
-    def __init__(self, output_path, contactDB, phoneDB, callingDB, photosDB, settingsDB, deviceDataDB, exportFlag=False, searchPhoneNumbers=None, searchFaceImages=None, searchFaceProfiles=None):
+    def __init__(self, input_path, output_path, exportFlag=False, groupFaceImages=False, searchPhoneNumbers=None, searchFaceImages=None, searchFaceProfiles=None):
+        self.input_path = input_path
         self.output_path = output_path
-        self.contactDB = contactDB
-        self.phoneDB = phoneDB
-        self.callingDB = callingDB
-        self.photosDB = photosDB
-        self.settingsDB = settingsDB
-        self.deviceDataDB = deviceDataDB
+        self.contactDB = input_path+'/'+DATABASES['contacts']
+        self.phoneDB = input_path+'/'+DATABASES['phone']
+        self.callingDB = input_path+'/'+DATABASES['calls']
+        self.photosDB = input_path+'/'+DATABASES['photos']
+        self.settingsDB = input_path+'/'+DATABASES['settings']
+        self.deviceDataDB = input_path+'/'+DATABASES['deviceData']
         self.exportFlag = exportFlag
+        self.groupFaceImages = groupFaceImages
         self.searchPhoneNumbers = searchPhoneNumbers
         self.searchFaceImages = searchFaceImages
         self.searchFaceProfiles = searchFaceProfiles
@@ -123,7 +125,7 @@ class YourPhoneParser():
         # https://stackoverflow.com/questions/5951157/if-in-select-statement-choose-output-value-based-on-column-values
 
     def contacts_calls_sms_mms(self):
-        if(self.searchPhones == None):
+        if(self.searchPhoneNumbers == None):
             self.search_contacts_calls_sms_mms()
         else:
             self.process_contacts_calls_sms_mms()
@@ -321,45 +323,81 @@ class YourPhoneParser():
             DBOperator.close_db_conn(callingDB_conn)
             DBOperator.close_db_conn(contactDB_conn)
             
-            print('-> Total contacts:',len(contacts))
-            print('-> Total phone:',len(phone_Processed))
-            print('-> Total calls:',len(calls_Processed))
-            print('-> Total sms chats:',len(conversation_Processed))
-            print('-> Total sms exchanged:',smsCount)
+            print(' |-> Total contacts:',len(contacts))
+            print(' |-> Total phone:',len(phone_Processed))
+            print(' |-> Total calls:',len(calls_Processed))
+            print(' |-> Total sms chats:',len(conversation_Processed))
+            print(' |-> Total sms exchanged:',smsCount)
                    
         except Exception as e:
             IOOperator.stop_and_persist_spinner(self.spinner, symbol='❌',text='Contacts, calls, sms and mms:',color='red')
             print(colored(str(e), 'red'))
-        
-    def process_images(self):
-        try:
-            print(colored('Extracting images:','cyan'))
-            IOOperator.startSpinner(self.spinner,'Loading','cyan')  
     
-            thumbFolder = self.output_path+'/'+EXPORT_FOLDERS['thumb']
-            mediaFolder = self.output_path+'/'+EXPORT_FOLDERS['media'] 
-            wallpaperFolder = self.output_path+'/'+EXPORT_FOLDERS['wallpaper']
-            suspectsFolder = self.output_path+'/'+EXPORT_FOLDERS['suspects']    
-            IOOperator.createFolder(thumbFolder)
-            IOOperator.createFolder(mediaFolder)
-            IOOperator.createFolder(wallpaperFolder)
-            IOOperator.createFolder(suspectsFolder)
+    def process_settings(self):
+        try:
+            print(colored('Parsing settings:','cyan'))
+            IOOperator.startSpinner(self.spinner,'Loading','cyan')
+            settingsDB_conn = DBOperator.create_db_conn(self.settingsDB)  # contact.db DATABASE
+            phoneApps = DBOperator.execute_query(SETTINGS_QUERY, settingsDB_conn, self.settingsDB, self.logFile)
+            f,csvWriter =  IOOperator.csvWriter(self.output_path+'/'+EXPORT_FILES['settings'])
+            csvWriter.writerow(SETTINGS_CSV)
 
-            if self.searchFaceImages:
-                searchFaceImagesFolder = self.output_path+'/'+EXPORT_FOLDERS['searchFaceImages']
-                IOOperator.createFolder(searchFaceImagesFolder)
-            if self.searchFaceProfiles:
-                searchFaceProfilesFolder = self.output_path+'/'+EXPORT_FOLDERS['searchFaceProfiles']
-                IOOperator.createFolder(searchFaceProfilesFolder)
-                
-            images_conn = DBOperator.create_db_conn(self.photosDB)  # photos.db DATABASE
-            images = DBOperator.execute_query(MEDIA_QUERY, images_conn, self.photosDB, self.logFile)
-            f,csvWriter =  IOOperator.csvWriter(self.output_path+'/'+EXPORT_FILES['images'])
-            csvWriter.writerow(PHOTOS_CSV)
-            imgCount = 0
+            if(phoneApps == None):
+                warning = '<Warning: empty settings database>'
+                print(colored(warning,'yellow'), end=' ')
+                IOOperator.log(warning, self.logFile)
+            else: 
+                for app in phoneApps:
+                    app = list(app)
+                    app[3] = self.ldap2datetime(app[3]).isoformat(" ", "seconds")
+                    IOOperator.printOut(app)
+                    csvWriter.writerow(app)
+            f.close()
+            IOOperator.stop_and_persist_spinner(self.spinner, symbol='✔',text='Installed apps',color='cyan') 
+            #print(colored('Ok','green'))  
+            print(' |-> Total apps:',len(phoneApps))
+        except Exception as e:
+            IOOperator.stop_and_persist_spinner(self.spinner, symbol='❌',text='Installed apps',color='red') 
+            print(colored(str(e), 'red'))
+                 
+    def process_images(self):
+
+        try:
+            print(colored('Obtaining images:','cyan'))
+            IOOperator.startSpinner(self.spinner,'Loading','cyan')  
+
+            if self.exportFlag:
+                exportFolder = self.output_path+'/'+EXPORT_FOLDERS['export']
+                thumbFolder = exportFolder+'/'+EXPORT_FOLDERS['thumb']
+                mediaFolder = exportFolder+'/'+EXPORT_FOLDERS['media'] 
+                wallpaperFolder = exportFolder+'/'+EXPORT_FOLDERS['wallpaper']
+
+                IOOperator.createFolder(exportFolder)
+                IOOperator.createFolder(thumbFolder)
+                IOOperator.createFolder(mediaFolder)
+                IOOperator.createFolder(wallpaperFolder)
+
+            analizeImages = False
             
-            faceOperator = faces.faceOperator('model_data/')
+            if (self.groupFaceImages) or (self.searchFaceImages != None) or (self.searchFaceProfiles != None):
+                
+                analizeImages = True
+
+                if self.groupFaceImages:
+                    groupFaceImagesFolder = self.output_path+'/'+EXPORT_FOLDERS['groupFaceImages']
+                    IOOperator.createFolder(groupFaceImagesFolder)
+                if self.searchFaceImages:
+                    searchFaceImagesFolder = self.output_path+'/'+EXPORT_FOLDERS['searchFaceImages']
+                    IOOperator.createFolder(searchFaceImagesFolder)
+                if self.searchFaceProfiles:
+                    searchFaceProfilesFolder = self.output_path+'/'+EXPORT_FOLDERS['searchFaceProfiles']
+                    IOOperator.createFolder(searchFaceProfilesFolder)
+                
+            imgCount = 0
             img_face_tuples  = []
+            faceOperator = faces.faceOperator('model_data/')
+            f,csvWriter =  IOOperator.csvWriter(self.output_path+'/'+EXPORT_FILES['images'])
+            csvWriter.writerow(PHOTOS_CSV)    
 
             try:
                 images_conn = DBOperator.create_db_conn(self.deviceDataDB)  # deviceData.db DATABASE
@@ -384,8 +422,8 @@ class YourPhoneParser():
                             f = open(wallpaperFolder+'/'+filename, "wb")
                             f.write(raw[0])
                             f.close()
-                        if (self.searchFaceImages != None) or (self.searchFaceProfiles != None):
-                            img_face_tuples.extend(faceOperator.find_faces(byteImg=raw[0],img_name=filename))
+                        if(analizeImages):
+                            img_face_tuples.extend(faceOperator.find_faces_in_image(byteImg=raw[0],img_name=filename))
                             
                         image = Image.open(io.BytesIO(raw[0]))
                         csvrow =['wallpaper.'+extension, 'Null', 'Null', 'Null', 'Null', 'image/'+extension, image.height, image.width, 'Null', 'Null', 'False','False', 'True']
@@ -399,6 +437,8 @@ class YourPhoneParser():
                 print(colored('Wallpaper export failed: '+str(e), 'red'))
             
             try:
+                images_conn = DBOperator.create_db_conn(self.photosDB)  # photos.db DATABASE
+                images = DBOperator.execute_query(MEDIA_QUERY, images_conn, self.photosDB, self.logFile)
                 IOOperator.startSpinner(self.spinner,'Loading','cyan')
                 if(images == None):
                     warning = '<Warning: no media or thumbnails available for export>'
@@ -419,8 +459,8 @@ class YourPhoneParser():
                                 if self.exportFlag:
                                     f = open(thumbFolder+'/'+image[0], "wb")    # Export Thumbnail
                                     f.write(image[10])
-                                if (self.searchFaceImages != None) or (self.searchFaceProfiles != None):  
-                                    img_face_tuples.extend(faceOperator.find_faces(byteImg=image[10],img_name=image[0]))
+                                if analizeImages:  
+                                    img_face_tuples.extend(faceOperator.find_faces_in_image(byteImg=image[10],img_name=image[0]))
                                 image[10] = 'False'
                                 image[11] = 'True'
                                 image.append('False')
@@ -428,8 +468,8 @@ class YourPhoneParser():
                                 if self.exportFlag:
                                     f = open(mediaFolder+'/'+image[0], "wb")     #Export Media
                                     f.write(image[11])
-                                if self.searchFaceImages != None | self.searchFaceProfiles != None:  
-                                    img_face_tuples.extend(faceOperator.find_faces(byteImg=image[11],img_name=image[0]))
+                                if analizeImages:  
+                                    img_face_tuples.extend(faceOperator.find_faces_in_image(byteImg=image[11],img_name=image[0]))
                                 image[10] = 'True'
                                 image[11] = 'False'
                                 image.append('False')                           
@@ -442,94 +482,72 @@ class YourPhoneParser():
             except Exception as e:
                 IOOperator.stop_and_persist_spinner(self.spinner, symbol='❌',text='Thumbnails and media',color='red')
                 print(colored(str(e), 'red'))
-            
-            nFoundFaces = len(img_face_tuples)
-            recognizableFaces = 0
-            recognizablesearchFaceImages = 0
-            
-            # Group faces
-            #try:
-            #    IOOperator.startSpinner(self.spinner,'Loading','cyan')
-            #    nExportedFaces = faceOperator.export_similar(img_face_tuples, output_path=suspectsFolder)
-            #    IOOperator.stop_and_persist_spinner(self.spinner, symbol='✔',text='Suspect faces',color='cyan')
-            #except Exception as e:
-            #    IOOperator.stop_and_persist_spinner(self.spinner, symbol='❌',text='Suspect faces',color='red') 
-            #    print(colored(str(e), 'red'))
-
-            #Search faces profile
-            if self.searchFaceProfiles != None:
-                try:
-                    IOOperator.startSpinner(self.spinner,'Loading','cyan')
-                    recognizableSearchFaceProfile = faceOperator.search_face_profile(faces=img_face_tuples, searchProfiles=self.searchFaceProfiles, output_path=searchFaceProfilesFolder)
-                    IOOperator.stop_and_persist_spinner(self.spinner, symbol='✔',text='Search face profiles',color='cyan')
-                except Exception as e:
-                    IOOperator.stop_and_persist_spinner(self.spinner, symbol='❌',text='Search face profiles',color='red') 
-                    print(colored(str(e), 'red'))
-
-            #Search faces images
-            if self.searchFaceImages != None:
-                search_faces_tuples = []
-                try:
-                    IOOperator.startSpinner(self.spinner,'Loading','cyan')
-                    search_faces_tuples = faceOperator.obtain_faces_from_images_folder(self.searchFaceImages)
-                    facesFoundInSearchSet = len(search_faces_tuples)
-                    recognizableFaces, recognizablesearchFaceImages = faceOperator.search_faces(faces=img_face_tuples, searchFaceImages=search_faces_tuples, output_path=searchFaceImagesFolder)
-                    IOOperator.stop_and_persist_spinner(self.spinner, symbol='✔',text='Search face images',color='cyan')
-                except Exception as e:
-                    IOOperator.stop_and_persist_spinner(self.spinner, symbol='❌',text='Search face images',color='red') 
-                    print(colored(str(e), 'red'))
-            
-            
-            print('|--> Database:')
-            print('  |--> Found:', nFoundFaces)
-            print('  |--> Recognizable', recognizableFaces)
-            print('|--> Search set:')
-            print('  |--> Found:', facesFoundInSearchSet)
-            print('  |--> Recognizable', recognizablesearchFaceImages)
-            print('|--> Profile set:')
-            print('  |--> Recognizable',recognizableSearchFaceProfile)
         
-        
+            print(colored('Processing images:','cyan'))
+            if(self.exportFlag):
+                print(' |--> Exported images',imgCount)
+
+            if(analizeImages):
+
+                found_faces = len(img_face_tuples)
+                recognizable_faces = faceOperator.delete_non_recognizable_faces(img_face_tuples)
+                print(' |--> Found faces', found_faces)
+                print(' |--> Recognizable faces', recognizable_faces)
+
+                # Group faces
+                if self.groupFaceImages:
+                    try:
+                        IOOperator.startSpinner(self.spinner,'Loading','cyan')
+                        groupedFaces = faceOperator.group_faces(img_face_tuples, output_path=groupFaceImagesFolder)
+                        IOOperator.stop_and_persist_spinner(self.spinner, symbol='✔',text='Group faces',color='cyan')
+                        print(' |--> Grouped faces', groupedFaces)
+                    except Exception as e:
+                        IOOperator.stop_and_persist_spinner(self.spinner, symbol='❌',text='Group faces',color='red') 
+                        print(colored(str(e), 'red'))
+                    
+                #Search face images
+                if self.searchFaceImages != None:
+                    search_faces_tuples = []
+                    try:
+                        IOOperator.startSpinner(self.spinner,'Loading','cyan')
+                        search_faces_tuples = faceOperator.find_faces_in_folder(self.searchFaceImages)
+                        found_faces_in_search_set = len(search_faces_tuples)
+                        recognizable_faces_in_search_set = faceOperator.delete_non_recognizable_faces(search_faces_tuples)
+                        matched_face_images = faceOperator.search_face_images(faces=img_face_tuples, searchFaces=search_faces_tuples, output_path=searchFaceImagesFolder)
+                        IOOperator.stop_and_persist_spinner(self.spinner, symbol='✔',text='Search face images',color='cyan')
+                        print(' |--> Found faces from search set:', found_faces_in_search_set)
+                        print(' |--> Recognizable faces from search set', recognizable_faces_in_search_set)
+                        print(' |--> Matched face images', matched_face_images)
+                    except Exception as e:      
+                        IOOperator.stop_and_persist_spinner(self.spinner, symbol='❌',text='Search face images',color='red') 
+                        print(colored(str(e), 'red'))
+
+                #Search faces profile
+                if self.searchFaceProfiles != None:
+                    try:
+                        IOOperator.startSpinner(self.spinner,'Loading','cyan')
+                        found_faces_in_search_profiles = faceOperator.search_face_profiles(faces=img_face_tuples, searchProfiles=self.searchFaceProfiles, output_path=searchFaceProfilesFolder)
+                        IOOperator.stop_and_persist_spinner(self.spinner, symbol='✔',text='Search face profiles',color='cyan')
+                        print(' |--> Matched face profiles',found_faces_in_search_profiles)
+                    except Exception as e:
+                        IOOperator.stop_and_persist_spinner(self.spinner, symbol='❌',text='Search face profiles',color='red') 
+                        print(colored(str(e), 'red'))
+
         except Exception as e:
             IOOperator.stop_and_persist_spinner(self.spinner, symbol='❌',text='Photos, thumbnails and wallpaper',color='red') 
             print(colored(str(e), 'red'))
 
-    def process_settings(self):
-        try:
-            print(colored('Parsing settings:','cyan'))
-            IOOperator.startSpinner(self.spinner,'Loading','cyan')
-            settingsDB_conn = DBOperator.create_db_conn(self.settingsDB)  # contact.db DATABASE
-            phoneApps = DBOperator.execute_query(SETTINGS_QUERY, settingsDB_conn, self.settingsDB, self.logFile)
-            f,csvWriter =  IOOperator.csvWriter(self.output_path+'/'+EXPORT_FILES['settings'])
-            csvWriter.writerow(SETTINGS_CSV)
-
-            if(phoneApps == None):
-                warning = '<Warning: empty settings database>'
-                print(colored(warning,'yellow'), end=' ')
-                IOOperator.log(warning, self.logFile)
-            else: 
-                for app in phoneApps:
-                    app = list(app)
-                    app[3] = self.ldap2datetime(app[3]).isoformat(" ", "seconds")
-                    IOOperator.printOut(app)
-                    csvWriter.writerow(app)
-            f.close()
-            IOOperator.stop_and_persist_spinner(self.spinner, symbol='✔',text='Installed apps',color='cyan') 
-            #print(colored('Ok','green'))  
-            print('-> Total apps:',len(phoneApps))
-        except Exception as e:
-            IOOperator.stop_and_persist_spinner(self.spinner, symbol='❌',text='Installed apps',color='red') 
-            print(colored(str(e), 'red'))
-                 
 def setup_args():
-    parser = argparse.ArgumentParser(description='Forensic analyzer of Microsoft Your Phone App')
-    parser.add_argument('-i', '--input', type=str, help='Path for database folder')
-    parser.add_argument('-o', '--output', type=str, help='Path for output results and media export')
-    parser.add_argument('-p', '--photos', action='store_true', help='Flag for photos and media extraction')
-    parser.add_argument('-v', '--verbose', action='store_true', help='Extensive logging and printout')
-    parser.add_argument('-spn', '--searchPhoneNumbers', type=str, help='Search by contact phone')
-    parser.add_argument('-sfi', '--searchFaceImages', type=str, help='Search by face image')
-    parser.add_argument('-sfp', '--searchFaceProfiles', type=str, help='Search by face attributes')
+    parser = argparse.ArgumentParser(description='Forensic analyzer of Microsoft Your Phone App.')
+    parser.add_argument('-i', '--input', type=str, help='Path for database folder.')
+    parser.add_argument('-o', '--output', type=str, help='Path for output results and media export. When active the results get sent to the folder provided, otherwise all output data is sent to the current working directory.')
+    parser.add_argument('-e', '--export', action='store_true', help='When active exports photos and media from input databases.')
+    parser.add_argument('-v', '--verbose', action='store_true', help='Extensive logging and printout through console.')
+    parser.add_argument('-gfi', '--groupFaceImages', type=str, help='Group suspects by face similarity.')
+    parser.add_argument('-spn', '--searchPhoneNumbers', type=str, help='Search by contact phone. Must input the csv path where all phone number searches are described (e.g -spn phones.csv).')
+    parser.add_argument('-sfp', '--searchFaceProfiles', type=str, help='Search by face attributes. Must input the csv path where all face attributes searches are described (e.g -sfp faceAttributes.csv).')
+    parser.add_argument('-sfi', '--searchFaceImages', type=str, help='Search by face images. Must input a directory path where all search images reside (e.g -spn ./searchImages)')
+    
     return vars(parser.parse_args())
 
 def main(args):
@@ -542,17 +560,12 @@ def main(args):
     VERBOSE = args['verbose']
     input_path = args['input']
     output_path = args['output']
-    exportFlag = args['photos']
+    exportFlag = args['export']
+    groupFaceImages = args['groupFaceImages']
     searchPhoneNumbers = args['searchPhoneNumbers']
     searchFaceImages = args['searchFaceImages']
     searchFaceProfiles = args['searchFaceProfiles']
-    contactDB = input_path+'/'+DATABASES['contacts']
-    phoneDB = input_path+'/'+DATABASES['phone']
-    callingDB = input_path+'/'+DATABASES['calls']
-    photosDB = input_path+'/'+DATABASES['photos']
-    settingsDB = input_path+'/'+DATABASES['settings']
-    deviceDataDB = input_path+'/'+DATABASES['deviceData']
-
+    
     if(input_path == None):
         sys.exit('Invalid input path.')
     elif(not os.path.exists(input_path)):
@@ -579,13 +592,13 @@ def main(args):
         else:
             fd_searchPhoneNumbers,searchPhoneNumbers =  IOOperator.csvReader(searchPhoneNumbers)
 
-    YourPhone = YourPhoneParser(output_path, contactDB, phoneDB, callingDB, photosDB, settingsDB, deviceDataDB, exportFlag=exportFlag, searchPhoneNumbers=searchPhoneNumbers, searchFaceImages=searchFaceImages, searchFaceProfiles=searchFaceProfiles)
+    YourPhone = YourPhoneParser(input_path, output_path, exportFlag=exportFlag, groupFaceImages=groupFaceImages, searchPhoneNumbers=searchPhoneNumbers, searchFaceImages=searchFaceImages, searchFaceProfiles=searchFaceProfiles)
 
-    #YourPhone.contacts_calls_sms_mms()
-    #print()
-    #YourPhone.process_settings()
-    #print()
-    if exportFlag: YourPhone.process_images()
+    YourPhone.contacts_calls_sms_mms()
+    print()
+    YourPhone.process_settings()
+    print()
+    YourPhone.process_images()
     print()
 
     if(fd_searchFaceProfiles !=None): fd_searchFaceProfiles.close()

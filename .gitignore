@@ -1,4 +1,6 @@
 /myFolderForResults/*
+/Results/*
+/searchFaces/*
 searchCriteria.csv
 log.txt
 *.pyc

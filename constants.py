@@ -64,6 +64,7 @@ EXPORT_FOLDERS = {
     'wallpaper': 'wallpaper',
     'faces': 'faces_found',
     'suspects':'suspects',
+    'searchFaces':'searchFaces',
     'csv':'csv'
 }
 EXPORT_FILES = {

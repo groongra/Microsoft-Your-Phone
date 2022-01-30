@@ -1,5 +1,7 @@
 import os
 import io
+from re import search
+from traceback import format_exc
 import cv2
 from PIL import Image   
 import numpy as np
@@ -15,6 +17,7 @@ BACKENDS = ['opencv', 'ssd', 'dlib', 'mtcnn', 'retinaface']
 MODEL = MODELS[0]
 METRIC = METRICS[2]
 BACKEND = BACKENDS[0]
+PROG_BAR = False
 
 class faceOperator():
 
@@ -54,7 +57,36 @@ class faceOperator():
 			suspectID = suspectID+1
 		return recognizableFaces
 	
-	def search_face_profile(self,faces,output_path):
+	def equal_face_profiles(self,profile1,profile2,age_compare_sign):
+		if(len(profile1) == len(profile2)):
+			if(profile1[0]=='Null' or profile2[0]=='Null' or age_compare_sign=='Null'):
+				pass
+			elif(age_compare_sign =='==' and int(profile1[0]) == int(profile2[0])):
+				pass
+			elif(age_compare_sign =='!=' and int(profile1[0]) != int(profile2[0])):
+				pass
+			elif(age_compare_sign =='<=' and int(profile1[0]) <= int(profile2[0])):
+				pass
+			elif(age_compare_sign =='>=' and int(profile1[0]) >= int(profile2[0])):
+				pass
+			elif(age_compare_sign =='<' and int(profile1[0]) < int(profile2[0])):
+				pass
+			elif(age_compare_sign =='<' and int(profile1[0]) < int(profile2[0])):
+				pass
+			else:
+				return False
+			i = 1
+			while i < len(profile1):
+				if(profile1[i] != profile2[i]):
+					if(profile1[i]=='Null' or profile2[i]=='Null'):
+						pass
+					else:
+						return False
+				i=i+1
+			return True
+		return False	
+				
+	def search_face_profile(self,faces,searchProfiles,output_path):
 		#Remove non recognizable faces
 		i = 0
 		while i < len(faces):
@@ -64,12 +96,29 @@ class faceOperator():
 				i=i+1
 			except Exception:
 				faces.pop(i)
-		recognizableFaces = len(faces)
+
+		recognizableFaces = 0
 
 		#Export similar faces
-		
-	
+		for searchProfile in searchProfiles:
+			searchProfileFolder = output_path+'/'+str(searchProfile[1:])
+			if not os.path.exists(searchProfileFolder):
+				os.makedirs(searchProfileFolder)
+			i=0
+			while i < len(faces):
+				img_name, face = faces[i]
+				try:
+					faceProfile = DeepFace.analyze(face, actions = ['age', 'gender', 'race', 'emotion'], prog_bar=PROG_BAR)
+					faceProfile = [str(faceProfile["age"]),faceProfile["dominant_race"],faceProfile["dominant_emotion"],faceProfile["gender"]]
+					if(self.equal_face_profiles(searchProfile[1:],faceProfile,searchProfile[0])):
+						cv2.imwrite(searchProfileFolder+'/'+img_name, face)
+						recognizableFaces = recognizableFaces+1
+				except Exception:
+					pass
+				i=i+1
 
+		return recognizableFaces
+		
 	def search_faces(self,faces,searchFaces,output_path):
 		
 		#Remove non recognizable faces

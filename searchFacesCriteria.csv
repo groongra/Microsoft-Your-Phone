@@ -1,0 +1,3 @@
+compare_sign,age,gender,race,emotion
+<=,30,white,happy,Man
+Null,Null,Null,Null,Man

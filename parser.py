@@ -31,6 +31,7 @@ class IOOperator:
     def csvReader(filename):
         f = open(filename, 'r', newline='', encoding='utf-8')
         csvReader = csv.reader(f, delimiter=',')
+        next(csvReader, None)
         return f,csvReader
         
     def openLog(output_path):
@@ -58,7 +59,7 @@ class IOOperator:
 
     def stop_and_persist_spinner(spinner,symbol,text,color):
         spinner.stop_and_persist(symbol=symbol.encode('utf-8'),text=colored(text,color))
-            
+
 class DBOperator():
 
     def close_db_conn(db_conn):
@@ -96,7 +97,7 @@ class DBOperator():
 
 class YourPhoneParser():
 
-    def __init__(self, output_path, contactDB, phoneDB, callingDB, photosDB, settingsDB, deviceDataDB, exportFlag=False, searchPhones=None, searchFaces=None):
+    def __init__(self, output_path, contactDB, phoneDB, callingDB, photosDB, settingsDB, deviceDataDB, exportFlag=False, searchPhoneNumbers=None, searchFaceImages=None, searchFaceProfiles=None):
         self.output_path = output_path
         self.contactDB = contactDB
         self.phoneDB = phoneDB
@@ -105,8 +106,9 @@ class YourPhoneParser():
         self.settingsDB = settingsDB
         self.deviceDataDB = deviceDataDB
         self.exportFlag = exportFlag
-        self.searchPhones = searchPhones
-        self.searchFaces = searchFaces
+        self.searchPhoneNumbers = searchPhoneNumbers
+        self.searchFaceImages = searchFaceImages
+        self.searchFaceProfiles = searchFaceProfiles
         self.logFile = IOOperator.openLog(output_path)
         self.spinner = Halo(text='', spinner='dots')
         
@@ -333,21 +335,22 @@ class YourPhoneParser():
         try:
             print(colored('Extracting images:','cyan'))
             IOOperator.startSpinner(self.spinner,'Loading','cyan')  
-            if self.exportFlag:
-                thumbFolder = self.output_path+'/'+EXPORT_FOLDERS['thumb']
-                mediaFolder = self.output_path+'/'+EXPORT_FOLDERS['media'] 
-                wallpaperFolder = self.output_path+'/'+EXPORT_FOLDERS['wallpaper']
-                suspectsFolder = self.output_path+'/'+EXPORT_FOLDERS['suspects']    
-                #facesFolder = self.output_path+'/'+EXPORT_FOLDERS['faces']
-                #IOOperator.createFolder(facesFolder)
-                IOOperator.createFolder(thumbFolder)
-                IOOperator.createFolder(mediaFolder)
-                IOOperator.createFolder(wallpaperFolder)
-                IOOperator.createFolder(suspectsFolder)
+    
+            thumbFolder = self.output_path+'/'+EXPORT_FOLDERS['thumb']
+            mediaFolder = self.output_path+'/'+EXPORT_FOLDERS['media'] 
+            wallpaperFolder = self.output_path+'/'+EXPORT_FOLDERS['wallpaper']
+            suspectsFolder = self.output_path+'/'+EXPORT_FOLDERS['suspects']    
+            IOOperator.createFolder(thumbFolder)
+            IOOperator.createFolder(mediaFolder)
+            IOOperator.createFolder(wallpaperFolder)
+            IOOperator.createFolder(suspectsFolder)
 
-            if self.searchFaces:
-                searchFacesFolder = self.output_path+'/'+EXPORT_FOLDERS['searchFaces']
-                IOOperator.createFolder(searchFacesFolder)
+            if self.searchFaceImages:
+                searchFaceImagesFolder = self.output_path+'/'+EXPORT_FOLDERS['searchFaceImages']
+                IOOperator.createFolder(searchFaceImagesFolder)
+            if self.searchFaceProfiles:
+                searchFaceProfilesFolder = self.output_path+'/'+EXPORT_FOLDERS['searchFaceProfiles']
+                IOOperator.createFolder(searchFaceProfilesFolder)
                 
             images_conn = DBOperator.create_db_conn(self.photosDB)  # photos.db DATABASE
             images = DBOperator.execute_query(MEDIA_QUERY, images_conn, self.photosDB, self.logFile)
@@ -381,7 +384,7 @@ class YourPhoneParser():
                             f = open(wallpaperFolder+'/'+filename, "wb")
                             f.write(raw[0])
                             f.close()
-                        if self.searchFaces != None:    
+                        if (self.searchFaceImages != None) or (self.searchFaceProfiles != None):
                             img_face_tuples.extend(faceOperator.find_faces(byteImg=raw[0],img_name=filename))
                             
                         image = Image.open(io.BytesIO(raw[0]))
@@ -416,7 +419,7 @@ class YourPhoneParser():
                                 if self.exportFlag:
                                     f = open(thumbFolder+'/'+image[0], "wb")    # Export Thumbnail
                                     f.write(image[10])
-                                if self.searchFaces != None:
+                                if (self.searchFaceImages != None) or (self.searchFaceProfiles != None):  
                                     img_face_tuples.extend(faceOperator.find_faces(byteImg=image[10],img_name=image[0]))
                                 image[10] = 'False'
                                 image[11] = 'True'
@@ -425,7 +428,7 @@ class YourPhoneParser():
                                 if self.exportFlag:
                                     f = open(mediaFolder+'/'+image[0], "wb")     #Export Media
                                     f.write(image[11])
-                                if self.searchFaces != None:
+                                if self.searchFaceImages != None | self.searchFaceProfiles != None:  
                                     img_face_tuples.extend(faceOperator.find_faces(byteImg=image[11],img_name=image[0]))
                                 image[10] = 'True'
                                 image[11] = 'False'
@@ -442,7 +445,7 @@ class YourPhoneParser():
             
             nFoundFaces = len(img_face_tuples)
             recognizableFaces = 0
-            recognizableSearchFaces = 0
+            recognizablesearchFaceImages = 0
             
             # Group faces
             #try:
@@ -453,17 +456,27 @@ class YourPhoneParser():
             #    IOOperator.stop_and_persist_spinner(self.spinner, symbol='❌',text='Suspect faces',color='red') 
             #    print(colored(str(e), 'red'))
 
-            #Search faces
-            search_faces_tuples = []
-            if self.searchFaces != None:
+            #Search faces profile
+            if self.searchFaceProfiles != None:
                 try:
                     IOOperator.startSpinner(self.spinner,'Loading','cyan')
-                    search_faces_tuples = faceOperator.obtain_faces_from_images_folder(self.searchFaces)
-                    facesFoundInSearchSet = len(search_faces_tuples)
-                    recognizableFaces, recognizableSearchFaces = faceOperator.search_faces(faces=img_face_tuples, searchFaces=search_faces_tuples, output_path=searchFacesFolder)
-                    IOOperator.stop_and_persist_spinner(self.spinner, symbol='✔',text='Search face',color='cyan')
+                    recognizableSearchFaceProfile = faceOperator.search_face_profile(faces=img_face_tuples, searchProfiles=self.searchFaceProfiles, output_path=searchFaceProfilesFolder)
+                    IOOperator.stop_and_persist_spinner(self.spinner, symbol='✔',text='Search face profiles',color='cyan')
                 except Exception as e:
-                    IOOperator.stop_and_persist_spinner(self.spinner, symbol='❌',text='Search face',color='red') 
+                    IOOperator.stop_and_persist_spinner(self.spinner, symbol='❌',text='Search face profiles',color='red') 
+                    print(colored(str(e), 'red'))
+
+            #Search faces images
+            if self.searchFaceImages != None:
+                search_faces_tuples = []
+                try:
+                    IOOperator.startSpinner(self.spinner,'Loading','cyan')
+                    search_faces_tuples = faceOperator.obtain_faces_from_images_folder(self.searchFaceImages)
+                    facesFoundInSearchSet = len(search_faces_tuples)
+                    recognizableFaces, recognizablesearchFaceImages = faceOperator.search_faces(faces=img_face_tuples, searchFaceImages=search_faces_tuples, output_path=searchFaceImagesFolder)
+                    IOOperator.stop_and_persist_spinner(self.spinner, symbol='✔',text='Search face images',color='cyan')
+                except Exception as e:
+                    IOOperator.stop_and_persist_spinner(self.spinner, symbol='❌',text='Search face images',color='red') 
                     print(colored(str(e), 'red'))
             
             
@@ -472,7 +485,9 @@ class YourPhoneParser():
             print('  |--> Recognizable', recognizableFaces)
             print('|--> Search set:')
             print('  |--> Found:', facesFoundInSearchSet)
-            print('  |--> Recognizable', recognizableSearchFaces)
+            print('  |--> Recognizable', recognizablesearchFaceImages)
+            print('|--> Profile set:')
+            print('  |--> Recognizable',recognizableSearchFaceProfile)
         
         
         except Exception as e:
@@ -512,9 +527,9 @@ def setup_args():
     parser.add_argument('-o', '--output', type=str, help='Path for output results and media export')
     parser.add_argument('-p', '--photos', action='store_true', help='Flag for photos and media extraction')
     parser.add_argument('-v', '--verbose', action='store_true', help='Extensive logging and printout')
-    parser.add_argument('-cn', '--contactName', type=str, help='Search by contact name')
-    parser.add_argument('-sp', '--contactPhone', type=str, help='Search by contact phone')
-    parser.add_argument('-sf', '--searchFaces', type=str, help='Search by faces')
+    parser.add_argument('-spn', '--searchPhoneNumbers', type=str, help='Search by contact phone')
+    parser.add_argument('-sfi', '--searchFaceImages', type=str, help='Search by face image')
+    parser.add_argument('-sfp', '--searchFaceProfiles', type=str, help='Search by face attributes')
     return vars(parser.parse_args())
 
 def main(args):
@@ -522,15 +537,21 @@ def main(args):
     print()
     print(colored('<< Your Phone forensic analyzer >>','grey','on_white'))
     print()
+
+    global VERBOSE 
+    VERBOSE = args['verbose']
     input_path = args['input']
     output_path = args['output']
     exportFlag = args['photos']
-    
-    global VERBOSE 
-    VERBOSE = args['verbose']
-    searchName = args['contactName']
-    searchPhones = args['contactPhone']
-    searchFaces = args['searchFaces']
+    searchPhoneNumbers = args['searchPhoneNumbers']
+    searchFaceImages = args['searchFaceImages']
+    searchFaceProfiles = args['searchFaceProfiles']
+    contactDB = input_path+'/'+DATABASES['contacts']
+    phoneDB = input_path+'/'+DATABASES['phone']
+    callingDB = input_path+'/'+DATABASES['calls']
+    photosDB = input_path+'/'+DATABASES['photos']
+    settingsDB = input_path+'/'+DATABASES['settings']
+    deviceDataDB = input_path+'/'+DATABASES['deviceData']
 
     if(input_path == None):
         sys.exit('Invalid input path.')
@@ -542,31 +563,34 @@ def main(args):
     elif not os.path.exists(output_path):
         os.makedirs(output_path)
 
-    if(searchFaces != None):
-        if(not os.path.exists(searchFaces)):
-            sys.exit('Phone search csv provided doesnt exist.')
+    if(searchFaceImages != None):
+        if(not os.path.exists(searchFaceImages)):
+            sys.exit('Face search folder doesnt exist.')
 
-    if(searchPhones != None):
-        if(not os.path.exists(searchPhones)):
+    if(searchFaceProfiles != None):
+        if(not os.path.exists(searchFaceProfiles)):
+            sys.exit('Face search profile csv doesnt exist.')
+        else:
+            fd_searchFaceProfiles,searchFaceProfiles =  IOOperator.csvReader(searchFaceProfiles)
+
+    if(searchPhoneNumbers != None):
+        if(not os.path.exists(searchPhoneNumbers)):
             sys.exit('Phone search csv provided doesnt exist.')
         else:
-            f,searchPhones =  IOOperator.csvReader(searchPhones)
+            fd_searchPhoneNumbers,searchPhoneNumbers =  IOOperator.csvReader(searchPhoneNumbers)
 
-    contactDB = input_path+'/'+DATABASES['contacts']
-    phoneDB = input_path+'/'+DATABASES['phone']
-    callingDB = input_path+'/'+DATABASES['calls']
-    photosDB = input_path+'/'+DATABASES['photos']
-    settingsDB = input_path+'/'+DATABASES['settings']
-    deviceDataDB = input_path+'/'+DATABASES['deviceData']
-
-    YourPhone = YourPhoneParser(output_path, contactDB, phoneDB, callingDB, photosDB, settingsDB, deviceDataDB, exportFlag=exportFlag, searchPhones=searchPhones, searchFaces=searchFaces)
+    YourPhone = YourPhoneParser(output_path, contactDB, phoneDB, callingDB, photosDB, settingsDB, deviceDataDB, exportFlag=exportFlag, searchPhoneNumbers=searchPhoneNumbers, searchFaceImages=searchFaceImages, searchFaceProfiles=searchFaceProfiles)
 
     #YourPhone.contacts_calls_sms_mms()
     #print()
     #YourPhone.process_settings()
     #print()
-    YourPhone.process_images()
+    if exportFlag: YourPhone.process_images()
     print()
+
+    if(fd_searchFaceProfiles !=None): fd_searchFaceProfiles.close()
+    if(fd_searchPhoneNumbers !=None):fd_searchPhoneNumbers.close()
+
     total_time = round(time.time() - start_time, 2)
     print('Elapsed time: ' + str(total_time) + 's')
 

@@ -12,7 +12,7 @@ from halo import Halo                       #Pip3 install Halo          https://
 from termcolor import colored               #Pip3 install colored       https://pypi.org/project/colored/
 from PIL import Image                       #Pip3 install Image         https://pillow.readthedocs.io/en/stable/handbook/tutorial.html
 from constants import *
-import faces
+import faceProcessor
 
 #TODO#
 #
@@ -126,9 +126,9 @@ class YourPhoneParser():
 
     def contacts_calls_sms_mms(self):
         if(self.searchPhoneNumbers == None):
-            self.search_contacts_calls_sms_mms()
-        else:
             self.process_contacts_calls_sms_mms()
+        else:
+            self.search_contacts_calls_sms_mms()
 
     def search_contacts_calls_sms_mms(self):
         try:
@@ -142,7 +142,7 @@ class YourPhoneParser():
             conversation_Processed = []
             country_code_regex = re.compile(COUNTRY_CODE_REGEX)
 
-            for searchPhone in self.searchPhones:
+            for searchPhone in self.searchPhoneNumbers:
                 IOOperator.printOut('? Search: '+searchPhone[0])
                 raw_phone_number = country_code_regex.sub('', searchPhone[0])
                 contacts = DBOperator.execute_query(CONTACT_INFO_QUERY+' WHERE contact_id = (SELECT contact_id FROM phonenumber WHERE phone_number LIKE \'%'+str(raw_phone_number)+'%\')', contactDB_conn, self.contactDB, self.logFile)
@@ -395,7 +395,7 @@ class YourPhoneParser():
                 
             imgCount = 0
             img_face_tuples  = []
-            faceOperator = faces.faceOperator('model_data/')
+            faceOperator = faceProcessor.faceOperator('model_data/')
             f,csvWriter =  IOOperator.csvWriter(self.output_path+'/'+EXPORT_FILES['images'])
             csvWriter.writerow(PHOTOS_CSV)    
 
@@ -494,17 +494,6 @@ class YourPhoneParser():
                 print(' |--> Found faces', found_faces)
                 print(' |--> Recognizable faces', recognizable_faces)
 
-                # Group faces
-                if self.groupFaceImages:
-                    try:
-                        IOOperator.startSpinner(self.spinner,'Loading','cyan')
-                        groupedFaces = faceOperator.group_faces(img_face_tuples, output_path=groupFaceImagesFolder)
-                        IOOperator.stop_and_persist_spinner(self.spinner, symbol='✔',text='Group faces',color='cyan')
-                        print(' |--> Grouped faces', groupedFaces)
-                    except Exception as e:
-                        IOOperator.stop_and_persist_spinner(self.spinner, symbol='❌',text='Group faces',color='red') 
-                        print(colored(str(e), 'red'))
-                    
                 #Search face images
                 if self.searchFaceImages != None:
                     search_faces_tuples = []
@@ -526,12 +515,24 @@ class YourPhoneParser():
                 if self.searchFaceProfiles != None:
                     try:
                         IOOperator.startSpinner(self.spinner,'Loading','cyan')
-                        found_faces_in_search_profiles = faceOperator.search_face_profiles(faces=img_face_tuples, searchProfiles=self.searchFaceProfiles, output_path=searchFaceProfilesFolder)
+                        Matched_faces_in_search_profiles = faceOperator.search_face_profiles(faces=img_face_tuples, searchProfiles=self.searchFaceProfiles, output_path=searchFaceProfilesFolder)
                         IOOperator.stop_and_persist_spinner(self.spinner, symbol='✔',text='Search face profiles',color='cyan')
-                        print(' |--> Matched face profiles',found_faces_in_search_profiles)
+                        print(' |--> Matched face profiles',Matched_faces_in_search_profiles)
                     except Exception as e:
                         IOOperator.stop_and_persist_spinner(self.spinner, symbol='❌',text='Search face profiles',color='red') 
                         print(colored(str(e), 'red'))
+                        
+                # Group faces
+                if self.groupFaceImages:
+                    try:
+                        IOOperator.startSpinner(self.spinner,'Loading','cyan')
+                        groupedFaces = faceOperator.group_faces(img_face_tuples, output_path=groupFaceImagesFolder)
+                        IOOperator.stop_and_persist_spinner(self.spinner, symbol='✔',text='Group faces',color='cyan')
+                        print(' |--> Grouped faces', groupedFaces)
+                    except Exception as e:
+                        IOOperator.stop_and_persist_spinner(self.spinner, symbol='❌',text='Group faces',color='red') 
+                        print(colored(str(e), 'red'))
+                    
 
         except Exception as e:
             IOOperator.stop_and_persist_spinner(self.spinner, symbol='❌',text='Photos, thumbnails and wallpaper',color='red') 
@@ -543,7 +544,7 @@ def setup_args():
     parser.add_argument('-o', '--output', type=str, help='Path for output results and media export. When active the results get sent to the folder provided, otherwise all output data is sent to the current working directory.')
     parser.add_argument('-e', '--export', action='store_true', help='When active exports photos and media from input databases.')
     parser.add_argument('-v', '--verbose', action='store_true', help='Extensive logging and printout through console.')
-    parser.add_argument('-gfi', '--groupFaceImages', type=str, help='Group suspects by face similarity.')
+    parser.add_argument('-gfi', '--groupFaceImages', action='store_true', help='Group suspects by face similarity.')
     parser.add_argument('-spn', '--searchPhoneNumbers', type=str, help='Search by contact phone. Must input the csv path where all phone number searches are described (e.g -spn phones.csv).')
     parser.add_argument('-sfp', '--searchFaceProfiles', type=str, help='Search by face attributes. Must input the csv path where all face attributes searches are described (e.g -sfp faceAttributes.csv).')
     parser.add_argument('-sfi', '--searchFaceImages', type=str, help='Search by face images. Must input a directory path where all search images reside (e.g -spn ./searchImages)')

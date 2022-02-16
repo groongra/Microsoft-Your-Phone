@@ -31,9 +31,9 @@ optional arguments:
 # CSV format for Search phone numbers
   compare_sign {<,>,=>,<=,!=,==,Null>},
   age,
-  race {asian, white, middle eastern, indian, latino and black},
-  emotion {angry, fear, neutral, sad, disgust, happy and surprise},
-  gender {Man,Woman}
+  race {Null, asian, white, middle eastern, indian, latino and black},
+  emotion {Null, angry, fear, neutral, sad, disgust, happy and surprise},
+  gender {Null, Man and Woman}
 
 <Example>
   compare_sign,age,race,emotion,gender

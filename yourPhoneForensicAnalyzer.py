@@ -119,10 +119,6 @@ class YourPhoneParser():
 
     def ldap2datetime(self,timestamp):
         return datetime(1601, 1, 1) + timedelta(seconds=timestamp/10000000)
-        # print(ldap2datetime(132255350424395239).isoformat())
-        # https://www.epochconverter.com/ldap
-        # https://newbedev.com/how-to-convert-ldap-timestamp-to-unix-timestamp
-        # https://stackoverflow.com/questions/5951157/if-in-select-statement-choose-output-value-based-on-column-values
 
     def contacts_calls_sms_mms(self):
         if(self.searchPhoneNumbers == None):
@@ -145,7 +141,7 @@ class YourPhoneParser():
             for searchPhone in self.searchPhoneNumbers:
                 IOOperator.printOut('? Search: '+searchPhone[0])
                 raw_phone_number = country_code_regex.sub('', searchPhone[0])
-                contacts = DBOperator.execute_query(CONTACT_INFO_QUERY+' WHERE contact_id = (SELECT contact_id FROM phonenumber WHERE phone_number LIKE \'%'+str(raw_phone_number)+'%\')', contactDB_conn, self.contactDB, self.logFile)
+                contacts = DBOperator.execute_query(CONTACT_INFO_QUERY+' INNER JOIN phonenumber p ON c.contact_id=p.contact_id WHERE p.phone_number LIKE \'%'+str(raw_phone_number)+'%\'', contactDB_conn, self.contactDB, self.logFile)
                 for contact in contacts:
                     contact = list(contact)
                     contact[10] = self.ldap2datetime(contact[10]).isoformat(" ", "seconds")
@@ -167,7 +163,7 @@ class YourPhoneParser():
                             call[4] = IS_READ_TYPE[call[4]]
                             call[5] = self.ldap2datetime(call[5]).isoformat(" ", "seconds")
                             call[6] = self.ldap2datetime(call[6]).isoformat(" ", "seconds")
-                            IOOperator.printOut('Call ->\t'+str(call[1:])) #[2:] TO SKIP PHONE NUMBER#
+                            IOOperator.printOut(colored('Call ->\t'+str(call[1:]),'magenta')) #[2:] TO SKIP PHONE NUMBER#
                             #csvCalls.writerow(call[:1])
                             
                         phoneDB_conn = DBOperator.create_db_conn(self.phoneDB)   # phone.db DATABASE
@@ -194,8 +190,10 @@ class YourPhoneParser():
                                 else:
                                     IOOperator.printOut(colored('Unexpected TODO', 'red'))
                 IOOperator.printOut()
+            
+            IOOperator.stop_and_persist_spinner(self.spinner, symbol='✔',text='Search phones',color='cyan')
         except Exception as e:
-            IOOperator.stop_and_persist_spinner(self.spinner, symbol='❌',text='Search',color='red')
+            IOOperator.stop_and_persist_spinner(self.spinner, symbol='❌',text='Search phones',color='red')
             print(colored(str(e), 'red'))
 
     def process_contacts_calls_sms_mms(self):
@@ -240,7 +238,7 @@ class YourPhoneParser():
                         call[4] = IS_READ_TYPE[call[4]]
                         call[5] = self.ldap2datetime(call[5]).isoformat(" ", "seconds")
                         call[6] = self.ldap2datetime(call[6]).isoformat(" ", "seconds")
-                        IOOperator.printOut('Call ->\t'+str(call[1:])) #[2:] TO SKIP PHONE NUMBER#
+                        IOOperator.printOut(colored('Call ->\t'+str(call[1:]),'magenta')) #[2:] TO SKIP PHONE NUMBER#
                         #csvCalls.writerow(call[:1])
                         
                     phoneDB_conn = DBOperator.create_db_conn(self.phoneDB)   # phone.db DATABASE
@@ -290,7 +288,7 @@ class YourPhoneParser():
                 call[4] = IS_READ_TYPE[call[4]]
                 call[5] = self.ldap2datetime(call[5]).isoformat(" ", "seconds")
                 call[6] = self.ldap2datetime(call[6]).isoformat(" ", "seconds")
-                IOOperator.printOut('Call ->\t'+str(call[1:]))
+                IOOperator.printOut(colored('Call ->\t'+str(call[1:]),'magenta'))
 
             sms_mms_conversation = DBOperator.execute_query(CONVERSATION_SMS_MMS_QUERY +' WHERE thread_id NOT IN ('+ ','.join(map(str, conversation_Processed))+')',phoneDB_conn, self.phoneDB, self.logFile)
             for conversation in sms_mms_conversation:
@@ -566,11 +564,13 @@ def main(args):
     searchPhoneNumbers = args['searchPhoneNumbers']
     searchFaceImages = args['searchFaceImages']
     searchFaceProfiles = args['searchFaceProfiles']
-    
+    fd_searchFaceProfiles = None
+    fd_searchPhoneNumbers = None
+
     if(input_path == None):
         sys.exit('Invalid input path.')
     elif(not os.path.exists(input_path)):
-        sys.exit('Input path doesnt exist.')
+        sys.exit('Input path doesn\'t exist.')
 
     if(output_path == None):
         output_path = os.getcwd()
@@ -579,17 +579,17 @@ def main(args):
 
     if(searchFaceImages != None):
         if(not os.path.exists(searchFaceImages)):
-            sys.exit('Face search folder doesnt exist.')
+            sys.exit('Face search folder doesn\'t exist.')
 
     if(searchFaceProfiles != None):
         if(not os.path.exists(searchFaceProfiles)):
-            sys.exit('Face search profile csv doesnt exist.')
+            sys.exit('Face search profile csv doesn\'t exist.')
         else:
             fd_searchFaceProfiles,searchFaceProfiles =  IOOperator.csvReader(searchFaceProfiles)
 
     if(searchPhoneNumbers != None):
         if(not os.path.exists(searchPhoneNumbers)):
-            sys.exit('Phone search csv provided doesnt exist.')
+            sys.exit('Phone search csv provided doesn\'t exist.')
         else:
             fd_searchPhoneNumbers,searchPhoneNumbers =  IOOperator.csvReader(searchPhoneNumbers)
 

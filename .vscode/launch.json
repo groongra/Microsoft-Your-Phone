@@ -13,7 +13,21 @@
             "console": "integratedTerminal",
             //"args": ["-h"]
             //"args": ["-i", "C:/Users/lucas/Documents/TrabajoFinalDeGrado/Final/YourPhoneApp/Evidences/Microsoft.YourPhone_8wekyb3d8bbwe/LocalCache/Indexed/0857d319-bd80-495f-a54a-34c472f351aa/System/Database","-o", "myFolderForResults","--searchPhoneNumbers","searchPhonesCriteria.csv","--searchFaceProfiles","searchFacesCriteria.csv"]
-            "args": ["-i", "C:/Users/lucas/Documents/TrabajoFinalDeGrado/Final/YourPhoneApp/Evidences/Microsoft.YourPhone_8wekyb3d8bbwe/LocalCache/Indexed/0857d319-bd80-495f-a54a-34c472f351aa/System/Database","-o", "myFolderForResults","-e", "-v", "--groupFaceImages","--searchPhoneNumbers","searchPhonesCriteria.csv","--searchFaceProfiles","searchFacesCriteria.csv","--searchFaceImages","searchFacesInput"]
+            //"args": ["-i", "C:/Users/lucas/Documents/TrabajoFinalDeGrado/Final/YourPhoneApp/Evidences/Microsoft.YourPhone_8wekyb3d8bbwe/LocalCache/Indexed/0857d319-bd80-495f-a54a-34c472f351aa/System/Database","-o", "myFolderForResults","-e", "-v", "--groupFaceImages","--searchPhoneNumbers","searchPhonesCriteria.csv","--searchFaceProfiles","searchFacesCriteria.csv","--searchFaceImages","searchFacesInput"]
+            //"args": ["-i", "C:/Users/lucas/AppData/Local/Packages/Microsoft.YourPhone_8wekyb3d8bbwe/LocalCache/Indexed/0857d319-bd80-495f-a54a-34c472f351aa/System/Database","-o", "myFolderForResults","-e", "-v","--searchPhoneNumbers","searchPhonesCriteria.csv"]
+            //"args": [¡"-i", "C:/Users/lucas/AppData/Local/Packages/Microsoft.YourPhone_8wekyb3d8bbwe/LocalCache/Indexed/0857d319-bd80-495f-a54a-34c472f351aa/System/Database","-o", "myFolderForResults","-e", "-v"]
+            //"args": ["-i", "C:/Users/lucas/AppData/Local/Packages/Microsoft.YourPhone_8wekyb3d8bbwe/LocalCache/Indexed/0857d319-bd80-495f-a54a-34c472f351aa/System/Database"]
+
+            //--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+            //"args": []
+            //"args": ["-i", "C:/Users/lucas/AppData/Local/Packages/Microsoft.YourPhone_8wekyb3d8bbwe/LocalCache/Indexed/0857d319-bd80-495f-a54a-34c472f351aa/System/Database"]
+            //"args": ["-i", "C:/Users/lucas/AppData/Local/Packages/Microsoft.YourPhone_8wekyb3d8bbwe/LocalCache/Indexed/0857d319-bd80-495f-a54a-34c472f351aa/System/Database","-o", "test2"]
+            //"args": ["-i", "C:/Users/lucas/AppData/Local/Packages/Microsoft.YourPhone_8wekyb3d8bbwe/LocalCache/Indexed/0857d319-bd80-495f-a54a-34c472f351aa/System/Database","-v"]
+            //"args": ["-i", "C:/Users/lucas/AppData/Local/Packages/Microsoft.YourPhone_8wekyb3d8bbwe/LocalCache/Indexed/0857d319-bd80-495f-a54a-34c472f351aa/System/Database","-o", "test2"]
+            //"args": ["-i", "C:/Users/lucas/Documents/TrabajoFinalDeGrado/Final/YourPhoneApp/Evidences/Testing"]
+            "args": ["-i", "C:/Users/lucas/Documents/TrabajoFinalDeGrado/Final/YourPhoneApp/Evidences/Testing","-o", "test4","--searchFaceImages","searchFacesInput"]
+        
         }
     ]
 }

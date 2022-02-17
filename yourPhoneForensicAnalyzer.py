@@ -340,16 +340,11 @@ class YourPhoneParser():
             f,csvWriter =  IOOperator.csvWriter(self.output_path+'/'+EXPORT_FILES['settings'])
             csvWriter.writerow(SETTINGS_CSV)
 
-            if(phoneApps == None):
-                warning = '<Warning: empty settings database>'
-                print(colored(warning,'yellow'), end=' ')
-                IOOperator.log(warning, self.logFile)
-            else: 
-                for app in phoneApps:
-                    app = list(app)
-                    app[3] = self.ldap2datetime(app[3]).isoformat(" ", "seconds")
-                    IOOperator.printOut(app)
-                    csvWriter.writerow(app)
+            for app in phoneApps:
+                app = list(app)
+                app[3] = self.ldap2datetime(app[3]).isoformat(" ", "seconds")
+                IOOperator.printOut(app)
+                csvWriter.writerow(app)
             f.close()
             IOOperator.stop_and_persist_spinner(self.spinner, symbol='✔',text='Installed apps',color='cyan') 
             #print(colored('Ok','green'))  

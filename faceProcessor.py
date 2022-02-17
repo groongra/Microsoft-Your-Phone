@@ -17,6 +17,15 @@ METRIC = METRICS[2]
 BACKEND = BACKENDS[0]
 PROG_BAR = False
 
+COMPARE_SIGN = {
+	'==': 'eq',
+    '!=': 'neq',
+	'<=': 'lte',
+	'>=': 'gte',
+	'<': 'lt',
+	'>': 'gt',
+	'Null': ''
+}
 def equal_face_profiles(profile1, profile2, age_compare_sign):
 	if(len(profile1) == len(profile2)):
 		if(profile1[0]=='Null' or profile2[0]=='Null' or age_compare_sign=='Null'):
@@ -29,7 +38,7 @@ def equal_face_profiles(profile1, profile2, age_compare_sign):
 			pass
 		elif(age_compare_sign =='>=' and int(profile1[0]) >= int(profile2[0])):
 			pass
-		elif(age_compare_sign =='<' and int(profile1[0]) < int(profile2[0])):
+		elif(age_compare_sign =='>' and int(profile1[0]) > int(profile2[0])):
 			pass
 		elif(age_compare_sign =='<' and int(profile1[0]) < int(profile2[0])):
 			pass
@@ -93,12 +102,12 @@ class faceOperator():
 		#Find matching faces with given profiles
 		Matched_faces = 0
 		for searchProfile in searchProfiles:
-			searchProfileFolder = output_path+'/'+str(searchProfile[1:])
+			searchProfileFolder = output_path+'/'+str(COMPARE_SIGN[searchProfile[0]])+'_'+str(searchProfile[1:])
 			if not os.path.exists(searchProfileFolder):
 				os.makedirs(searchProfileFolder)
 			i = 0
 			for faces_profile_attribute in faces_profile_attributes:
-				if(equal_face_profiles(searchProfile[1:],faces_profile_attribute,searchProfile[0])):
+				if(equal_face_profiles(faces_profile_attribute,searchProfile[1:],searchProfile[0])):
 					img_name, face = faces[i]
 					cv2.imwrite(searchProfileFolder+'/'+img_name, face)
 					Matched_faces = Matched_faces+1

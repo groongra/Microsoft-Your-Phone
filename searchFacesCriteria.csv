@@ -1,5 +1,6 @@
 compare_sign,age,race,emotion,gender
-<=,30,white,happy,Man
-Null,Null,Null,Null,Man
-Null,Null,Null,Null,Woman
->=,22,Null,Null,Null
+Null,Null,black,Null,Woman
+Null,Null,black,Null,Man
+>,60,asian,Null,Man
+<=,15,white,Null,Null
+Null,Null,Null,happy,Null

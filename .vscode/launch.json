@@ -27,7 +27,8 @@
             //"args": ["-i", "C:/Users/lucas/AppData/Local/Packages/Microsoft.YourPhone_8wekyb3d8bbwe/LocalCache/Indexed/0857d319-bd80-495f-a54a-34c472f351aa/System/Database","-o", "test2"]
             //"args": ["-i", "C:/Users/lucas/Documents/TrabajoFinalDeGrado/Final/YourPhoneApp/Evidences/Testing"]
             //"args": ["-i", "C:/Users/lucas/Documents/TrabajoFinalDeGrado/Final/YourPhoneApp/Evidences/Testing","-o", "test4","--groupFaceImages","--searchFaceProfiles","searchFacesCriteria.csv","--searchFaceImages","searchFacesInput"]
-            "args": ["-i", "C:/Users/lucas/Documents/TrabajoFinalDeGrado/Final/YourPhoneApp/Evidences/PhotosDBs","-o","Photos_DB", "--searchFaceProfiles","searchFacesCriteria.csv"]
+            //"args": ["-i", "C:/Users/lucas/Documents/TrabajoFinalDeGrado/Final/YourPhoneApp/Evidences/PhotosDBs","-o","Test0", "--searchFaceProfiles","search_faces_template.csv"]
+            "args": ["-i", "C:/Users/lucas/AppData/Local/Packages/Microsoft.YourPhone_8wekyb3d8bbwe/LocalCache/Indexed/c2a273c1-0af6-487e-b4c3-6963db1d2caf/System/Database","-o","Test1", "-v"]
             
         }
     ]

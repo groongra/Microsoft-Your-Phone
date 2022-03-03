@@ -14,7 +14,7 @@ BACKENDS = ['opencv', 'ssd', 'dlib', 'mtcnn', 'retinaface']
 
 MODEL = MODELS[0]
 METRIC = METRICS[2]
-BACKEND = BACKENDS[0]
+BACKEND = BACKENDS[3]
 PROG_BAR = False
 
 COMPARE_SIGN = {
@@ -58,7 +58,7 @@ def equal_face_profiles(profile1, profile2, age_compare_sign):
 class faceOperator():
 
 	def __init__(self,model_data_path):
-		self.deepFace_model = DeepFace.build_model(MODELS[2])
+		self.deepFace_model = DeepFace.build_model(MODEL)
 		self.openCV_model = cv2.dnn.readNetFromCaffe(model_data_path+'deploy.prototxt', model_data_path+'weights.caffemodel')
 
 	def group_faces(self,faces,output_path):
